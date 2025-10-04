@@ -1,0 +1,26 @@
+line-length = 88
+
+[format]
+line-ending = "lf"
+
+[lint]
+preview = true
+extend-select = [
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "ISC",  # flake8-implicit-str-concat
+    "LOG",  # flake8-logging
+    "G",    # flake8-logging-format
+    "PIE",  # flake8-pie
+    "Q",    # flake8-quotes
+    "TID",  # flake8-tidy-imports
+    "FLY",  # flynt
+    "I",    # isort
+    "PD",   # pandas-vet
+    "PERF", # perflint
+    "E",    # pycodestyle/error
+    "W",    # pycodestyle/warning
+    "PGH",  # pygrep-hooks
+    "PLE",  # pylint/error
+    "UP",   # pyupgrade
+]

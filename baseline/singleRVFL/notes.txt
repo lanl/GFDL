@@ -1,3 +1,0 @@
-These set of routines follow the implementation in 
-https://github.com/LeslieWongCV/RVFL-Bundle.git. 
-
