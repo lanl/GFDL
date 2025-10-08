@@ -1,4 +1,8 @@
 # scripts/experiment.py
+
+# Note: This experiment matches the evaluation protocol in Zhang et al. (2019)
+# and compares performance on the Binary Alphadigits (BA) dataset
+
 import sys
 from collections import defaultdict
 
