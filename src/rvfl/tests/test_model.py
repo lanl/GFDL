@@ -1,13 +1,10 @@
 # tests/test_model.py
-import sys
 
 import graforvfl
 import numpy as np
 import pytest
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
-
-sys.path.insert(0, "src")
 
 from rvfl.model import RVFL
 
