@@ -34,10 +34,21 @@ for _, (train_index, test_index) in enumerate(skf.split(X, y)):
     X_test = X[test_index]
     y_test = y[test_index]
     for w in weight_schemes:
-        rvfl_model = RVFL(weight_scheme=w, seed=42)
+        rvfl_model = RVFL(
+            n_hidden=100,
+            activation="sigmoid",
+            weight_scheme=w,
+            seed=42
+            )
         rvfl_model.fit(X_train, y_train)
 
-        elm_model = RVFL(weight_scheme=w, direct_links=False, seed=42)
+        elm_model = RVFL(
+            n_hidden=100,
+            activation="sigmoid",
+            weight_scheme=w,
+            direct_links=False,
+            seed=42
+            )
         elm_model.fit(X_train, y_train)
 
         y_hat = rvfl_model.predict_proba(X_test)
@@ -51,8 +62,8 @@ for _, (train_index, test_index) in enumerate(skf.split(X, y)):
         results[f"elm_{w}"].append(auc_estimator)
 
     grafo_rvfl = graforvfl.RvflClassifier(
-        size_hidden=10,
-        act_name="none",
+        size_hidden=100,
+        act_name="sigmoid",
         weight_initializer="random_uniform",
         reg_alpha=None,
         seed=0
