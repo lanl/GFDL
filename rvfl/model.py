@@ -2,7 +2,7 @@
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from .activations import resolve_activation
+from rvfl.activations import resolve_activation
 
 
 class RVFL:
@@ -12,14 +12,14 @@ class RVFL:
         activation: str = "identity",
         weight_scheme: str = "uniform",
         direct_links: bool = True,
-        seed: str = None
+        seed: int = None
     ):
         self.n_hidden = n_hidden
         name, fn = resolve_activation(activation)
         self.activation = name
         self._activation_fn = fn
         self.direct_links = direct_links
-        self.rng = np.random.default_rng(seed)
+        self.seed = seed
         self._weights(weight_scheme)
 
     def fit(self, X, y):
@@ -37,13 +37,13 @@ class RVFL:
         # shape: (n_samples, n_classes-1)
         Y = self.enc.fit_transform(y.reshape(-1, 1))
 
-        # weights shape: (n_features, n_hidden)
+        # weights shape: (n_hidden, n_features)
         self.W = self.weight_mode(self.N, self.n_hidden)
         # biases shape: (n_hidden,)
         self.b = self.weight_mode(self.n_hidden, 1).reshape(-1)
 
         # hypothesis space shape: (n_samples, n_hidden)
-        H = self._activation_fn(X @ self.W + self.b)
+        H = self._activation_fn(X @ self.W.T + self.b)
 
         # phi shape: (n_samples, n_hidden+n_features)
         # or (n_samples, n_hidden)
@@ -56,7 +56,7 @@ class RVFL:
     def predict(self, X):
         X = self.scaler.transform(X)
 
-        H = self._activation_fn(X @ self.W + self.b)
+        H = self._activation_fn(X @ self.W.T + self.b)
         Phi = np.concatenate((H, X), axis=1) if self.direct_links else H
         out = Phi @ self.beta
 
@@ -67,12 +67,15 @@ class RVFL:
     def predict_proba(self, X):
         X = self.scaler.transform(X)
 
-        H = self._activation_fn(X @ self.W + self.b)
+        H = self._activation_fn(X @ self.W.T + self.b)
         Phi = np.concatenate((H, X), axis=1) if self.direct_links else H
         out = Phi @ self.beta
         out = np.exp(out) / np.exp(out).sum(axis=1, keepdims=True)
 
         return out
+
+    def get_generator(self, seed):
+        return np.random.default_rng(seed)
 
     def _weights(self, weight_scheme):
 
@@ -80,18 +83,18 @@ class RVFL:
         match name:
             case "zeros":
                 def _zeros(d, h):
-                    return np.zeros((d, h))
+                    return np.zeros((h, d))
                 self.weight_mode = _zeros
             case "uniform":
                 def _uniform(d, h):
-                    return self.rng.uniform(-1, 1, (d, h))
+                    return self.get_generator(self.seed).uniform(0, 1, (h, d))
                 self.weight_mode = _uniform
             case "range":
                 def _range(d, h):
                     s = np.arange(d * h)
                     s = np.subtract(s, np.mean(s))
                     s /= np.std(s)
-                    return s.reshape(d, h)
+                    return s.reshape(h, d)
                 self.weight_mode = _range
             case _:
                 allowed = {"zeros", "uniform", "range"}
