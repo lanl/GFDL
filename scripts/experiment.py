@@ -1,4 +1,8 @@
 # scripts/experiment.py
+
+# Note: This experiment matches the evaluation protocol in Zhang et al. (2019)
+# and compares performance on the Binary Alphadigits (BA) dataset
+
 import sys
 from collections import defaultdict
 
@@ -34,6 +38,7 @@ for _, (train_index, test_index) in enumerate(skf.split(X, y)):
     X_test = X[test_index]
     y_test = y[test_index]
     for w in weight_schemes:
+        # Zhang et al. use 100 hidden nodes and sigmoid activation function
         rvfl_model = RVFL(weight_scheme=w, seed=42)
         rvfl_model.fit(X_train, y_train)
 
