@@ -3,7 +3,6 @@
 # Note: This experiment matches the evaluation protocol in Zhang et al. (2019)
 # and compares performance on the Binary Alphadigits (BA) dataset
 
-import sys
 from collections import defaultdict
 
 import graforvfl
@@ -13,8 +12,6 @@ import scipy
 import seaborn as sns
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
-
-sys.path.insert(0, "src")
 
 from rvfl.model import RVFL
 

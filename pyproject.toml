@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rvfl"
+version = "0.0.0"
+description = "RVFL baseline and variants"
+requires-python = ">=3.13"
+dependencies = ["numpy", "scikit-learn"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
