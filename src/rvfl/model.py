@@ -1,5 +1,6 @@
 # rvfl/model.py
 import numpy as np
+from scipy.special import logsumexp
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from rvfl.activations import resolve_activation
@@ -42,8 +43,13 @@ class RVFL:
         self.W = []
         self.b = []
 
-        self.W.append(self.weight_mode(self.N, self.hidden_layer_sizes[0], True))
-        self.b.append(self.weight_mode(self.hidden_layer_sizes[0], 1, True).reshape(-1))
+        self.W.append(
+            self.weight_mode(self.N, self.hidden_layer_sizes[0], first_layer=True)
+            )
+        self.b.append(
+            self.weight_mode(self.hidden_layer_sizes[0], 1, first_layer=True)
+            .reshape(-1)
+            )
         for i, layer in enumerate(self.hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W.append(self.weight_mode(self.hidden_layer_sizes[i], layer))
@@ -87,7 +93,7 @@ class RVFL:
         Phi = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
 
         out = Phi @ self.beta
-        out = np.exp(out) / np.exp(out).sum(axis=1, keepdims=True)
+        out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
 
         return out
 
@@ -99,22 +105,22 @@ class RVFL:
         name = weight_scheme.strip().lower()
         match name:
             case "zeros":
-                def _zeros(d, h, _=False):
+                def _zeros(d, h, **kwargs):
                     return np.zeros((h, d))
                 self.weight_mode = _zeros
             case "uniform":
-                def _uniform(d, h, first_layer=False):
+                def _uniform(d, h, *, first_layer=False, **kwargs):
                     if first_layer:
                         self.rng = self.get_generator(self.seed)
                         return self.rng.uniform(0, 1, (h, d))
                     return self.rng.uniform(0, 1, (h, d))
                 self.weight_mode = _uniform
             case "range":
-                def _range(d, h, _=False):
+                def _range(d, h, **kwargs):
                     s = np.arange(d * h)
                     s = np.subtract(s, np.mean(s))
-                    if np.std(s):
-                        s /= np.std(s)
+                    s /= np.std(s)
+                    s = np.nan_to_num(s)
                     return s.reshape(h, d)
                 self.weight_mode = _range
             case _:

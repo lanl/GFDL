@@ -3,7 +3,9 @@
 import graforvfl
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
 from sklearn.datasets import make_classification
+from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -107,8 +109,122 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
 
     expected_beta = np.linalg.pinv(expected_phi) @ Y
 
-    for exp, act in zip(expected_beta, model.beta, strict=False):
-        np.testing.assert_allclose(exp, act)
+    np.testing.assert_allclose(model.beta, expected_beta)
+
+
+@pytest.mark.parametrize("hidden_layer_sizes, activation, weight_scheme, exp_auc", [
+    # when direct links are absent (ELM), we expect the
+    # ROC AUC to increase with multi-layer network complexity
+    # up to a reasonable degree, when the width of the layers is
+    # quite small
+     ((2,), "relu", "uniform", 0.516163655),
+     ((2, 2), "relu", "uniform", 0.60763808),
+     # start hitting diminishing returns here:
+     ((2, 2, 2, 2), "relu", "uniform", 0.60891569),
+     ((2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.609660066),
+     # effectively no improvement here:
+     ((2, 2, 2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.609660066),
+     ]
+ )
+def test_multilayer_progression(weight_scheme,
+                                hidden_layer_sizes,
+                                activation,
+                                exp_auc):
+    X, y = make_classification(n_samples=400,
+                               n_features=100,
+                               n_classes=5,
+                               n_informative=26,
+                               random_state=42,
+                               class_sep=0.5)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+    model = RVFL(
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=False,
+        seed=0
+        )
+    model.fit(X_train, y_train)
+    y_score = model.predict_proba(X_test)
+    actual_auc = roc_auc_score(y_test, y_score, multi_class="ovo")
+    assert_allclose(actual_auc, exp_auc)
+
+
+def test_against_shi2021():
+    # test multilayer classiication against
+    # the results given in Shi et al. (2021)
+    # dataset obtained through https://github.com/bioinf-jku/SNNs
+    path = "./data/titanic/"
+    X = np.array([
+        [float(j) for j in i.strip().split(",")]
+          for i in open(path + "titanic_py.dat").readlines()
+          ])
+    y = np.array([
+        int(i.strip()) for i in open(path + "labels_py.dat").readlines()
+        ])
+
+    train_folds = np.array([
+        [int(j) for j in i.strip().split(",")]
+          for i in open(path + "folds_py.dat").readlines()
+          ]).astype(bool)
+    val_folds = np.array([
+        [int(j) for j in i.strip().split(",")]
+          for i in open(path + "validation_folds_py.dat").readlines()
+          ]).astype(bool)
+    test_folds = ~(train_folds + val_folds)
+
+    """
+    To find the best hyperparameter configuration for each model,
+    a small portion of the training samples is separated to serve
+    as the validation set. The hyperparameter configuration with
+    the highest accuracy on the validation set is selected as the
+    best hyperparameter for each model. Then, this method with
+    the best configuration is trained on the whole training set
+    and tested on the test data to obtain the testing accuracy.
+    For RVFL based models, we use a two-stage tuning method to
+    obtain their best hyperparameter configurations. The
+    two-stage tuning can be performed by the following steps: 1)
+    Fix the number layers to 2, and then select the optimal
+    number of neurons (N*) and regularization parameter (C*)
+    using a coarse range for N and C. 2) Tune the number of
+    layers and fine tune the N, C parameters by considering only
+    a fine range in the neighborhood of N* and C*.
+    """
+
+    K = train_folds.shape[1]
+
+    best_neuron = 224  # determined using the method outlined above
+    best_layer = 3
+
+    acc = 0
+    for k in range(K):
+        tr_idx = train_folds[:, k]
+        te_idx = test_folds[:, k]
+
+        X_train, y_train = X[tr_idx], y[tr_idx]
+        X_test, y_test = X[te_idx], y[te_idx]
+
+        hidden_layer_sizes = [best_neuron] * best_layer
+
+        model = RVFL(
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation="relu",
+            weight_scheme="uniform",
+            direct_links=True,
+            seed=0
+            )
+        model.fit(X_train, y_train)
+
+        y_hat = model.predict(X_test)
+
+        acc += accuracy_score(y_test, y_hat)
+
+    acc /= K
+
+    # not an exact match because they don't specify their activation
+    # and they're using ridge
+    assert acc == pytest.approx(.7882, 0.01)
 
 
 def test_invalid_activation_weight():
