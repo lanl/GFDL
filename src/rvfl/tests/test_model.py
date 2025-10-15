@@ -12,7 +12,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from rvfl.model import RVFL
 
-DATA_DIR = Path("data")/"titanic"
+DATA_DIR = Path("data") / "titanic"
 DATA = ["titanic_py.dat", "labels_py.dat", "folds_py.dat", "validation_folds_py.dat"]
 missing = [f for f in DATA if not (DATA_DIR / f).exists()]
 
@@ -155,9 +155,10 @@ def test_multilayer_progression(weight_scheme,
     actual_auc = roc_auc_score(y_test, y_score, multi_class="ovo")
     assert_allclose(actual_auc, exp_auc)
 
+
 @pytest.mark.skipif(
     bool(missing),
-    reason=f"missing data files in {DATA_DIR}: {missing} (set RVFL_TEST_DATA_DIR or run from repo root)"
+    reason=f"missing data files in {DATA_DIR}: {missing}"
 )
 def test_against_shi2021():
     # test multilayer classiication against
