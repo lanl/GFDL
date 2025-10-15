@@ -1,4 +1,5 @@
 # tests/test_model.py
+from pathlib import Path
 
 import graforvfl
 import numpy as np
@@ -10,6 +11,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from rvfl.model import RVFL
+
+DATA_DIR = Path("data")/"titanic"
+DATA = ["titanic_py.dat", "labels_py.dat", "folds_py.dat", "validation_folds_py.dat"]
+missing = [f for f in DATA if not (DATA_DIR / f).exists()]
 
 activations = ["relu", "tanh", "sigmoid", "identity"]
 weights = ["zeros", "uniform", "range"]
@@ -150,12 +155,15 @@ def test_multilayer_progression(weight_scheme,
     actual_auc = roc_auc_score(y_test, y_score, multi_class="ovo")
     assert_allclose(actual_auc, exp_auc)
 
-
+@pytest.mark.skipif(
+    bool(missing),
+    reason=f"missing data files in {DATA_DIR}: {missing} (set RVFL_TEST_DATA_DIR or run from repo root)"
+)
 def test_against_shi2021():
     # test multilayer classiication against
     # the results given in Shi et al. (2021)
     # dataset obtained through https://github.com/bioinf-jku/SNNs
-    path = "./data/titanic/"
+    path = "data/titanic/"
     X = np.array([
         [float(j) for j in i.strip().split(",")]
           for i in open(path + "titanic_py.dat").readlines()
@@ -223,6 +231,7 @@ def test_against_shi2021():
     acc /= K
 
     # not an exact match because they don't specify their activation
+    # nor do they mention the best hyperparameter configuration
     # and they're using ridge
     assert acc == pytest.approx(.7882, 0.01)
 
