@@ -31,6 +31,5 @@ jobs:
         ruff check
     - name: test
       run: |
-        python -m pytest -k test_against_shi2021
         cd /tmp
         python -m pytest --pyargs rvfl --cov=rvfl --cov-report=term-missing

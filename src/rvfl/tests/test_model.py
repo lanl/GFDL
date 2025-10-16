@@ -1,5 +1,5 @@
 # tests/test_model.py
-from pathlib import Path
+from importlib.resources import files
 
 import graforvfl
 import numpy as np
@@ -7,14 +7,10 @@ import pytest
 from numpy.testing import assert_allclose
 from sklearn.datasets import make_classification
 from sklearn.metrics import accuracy_score, roc_auc_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from rvfl.model import RVFL
-
-DATA_DIR = Path("data") / "titanic"
-DATA = ["titanic_py.dat", "labels_py.dat", "folds_py.dat", "validation_folds_py.dat"]
-missing = [f for f in DATA if not (DATA_DIR / f).exists()]
 
 activations = ["relu", "tanh", "sigmoid", "identity"]
 weights = ["zeros", "uniform", "range"]
@@ -156,63 +152,37 @@ def test_multilayer_progression(weight_scheme,
     assert_allclose(actual_auc, exp_auc)
 
 
-@pytest.mark.skipif(
-    bool(missing),
-    reason=f"missing data files in {DATA_DIR}: {missing}"
-)
 def test_against_shi2021():
-    # test multilayer classiication against
-    # the results given in Shi et al. (2021)
-    # dataset obtained through https://github.com/bioinf-jku/SNNs
-    path = "data/titanic/"
-    X = np.array([
-        [float(j) for j in i.strip().split(",")]
-          for i in open(path + "titanic_py.dat").readlines()
-          ])
-    y = np.array([
-        int(i.strip()) for i in open(path + "labels_py.dat").readlines()
-        ])
+    # test multilayer classification against
+    # the results given in Shi et al. (2021) DOI 10.1016/j.patcog.2021.107978
+    # dataset obtained from Kaggle
+    import pandas as pd
 
-    train_folds = np.array([
-        [int(j) for j in i.strip().split(",")]
-          for i in open(path + "folds_py.dat").readlines()
-          ]).astype(bool)
-    val_folds = np.array([
-        [int(j) for j in i.strip().split(",")]
-          for i in open(path + "validation_folds_py.dat").readlines()
-          ]).astype(bool)
-    test_folds = ~(train_folds + val_folds)
+    base = files("rvfl.testdata").joinpath("Titanic-Dataset.csv")
 
-    """
-    To find the best hyperparameter configuration for each model,
-    a small portion of the training samples is separated to serve
-    as the validation set. The hyperparameter configuration with
-    the highest accuracy on the validation set is selected as the
-    best hyperparameter for each model. Then, this method with
-    the best configuration is trained on the whole training set
-    and tested on the test data to obtain the testing accuracy.
-    For RVFL based models, we use a two-stage tuning method to
-    obtain their best hyperparameter configurations. The
-    two-stage tuning can be performed by the following steps: 1)
-    Fix the number layers to 2, and then select the optimal
-    number of neurons (N*) and regularization parameter (C*)
-    using a coarse range for N and C. 2) Tune the number of
-    layers and fine tune the N, C parameters by considering only
-    a fine range in the neighborhood of N* and C*.
-    """
+    df = pd.read_csv(base)
 
-    K = train_folds.shape[1]
+    X = df[["Pclass", "Sex", "Age"]].assign(
+            Sex=lambda d: d["Sex"].map({"male": 1, "female": 0}).astype("int8"),
+            Age=lambda d: d["Age"].gt(18).fillna(0).astype("int8")
+            )
 
-    best_neuron = 224  # determined using the method outlined above
+    y = df["Survived"]
+
+    X, y = np.array(X), np.array(y)
+
+    K = 4
+    skf = StratifiedKFold(n_splits=K, shuffle=True, random_state=42)
+
+    best_neuron = 224  # determined using the method outlined by Shi et al. (2021)
     best_layer = 3
 
     acc = 0
-    for k in range(K):
-        tr_idx = train_folds[:, k]
-        te_idx = test_folds[:, k]
-
-        X_train, y_train = X[tr_idx], y[tr_idx]
-        X_test, y_test = X[te_idx], y[te_idx]
+    for train_index, test_index in skf.split(X, y):
+        X_train = X[train_index]
+        y_train = y[train_index]
+        X_test = X[test_index]
+        y_test = y[test_index]
 
         hidden_layer_sizes = [best_neuron] * best_layer
 
@@ -234,7 +204,9 @@ def test_against_shi2021():
     # not an exact match because they don't specify their activation
     # nor do they mention the best hyperparameter configuration
     # and they're using ridge
-    assert acc == pytest.approx(.7882, 0.01)
+
+    # tightest bound for both rel and abs
+    assert acc == pytest.approx(.7882, rel=4e-3, abs=3e-3)
 
 
 def test_invalid_activation_weight():
