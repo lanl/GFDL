@@ -7,7 +7,7 @@ name = "rvfl"
 version = "0.0.0"
 description = "RVFL baseline and variants"
 requires-python = ">=3.13"
-dependencies = ["numpy", "scikit-learn"]
+dependencies = ["numpy", "scikit-learn", "pandas", "ucimlrepo"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

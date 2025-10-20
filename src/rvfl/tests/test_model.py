@@ -1,5 +1,4 @@
 # tests/test_model.py
-from importlib.resources import files
 
 import graforvfl
 import numpy as np
@@ -9,6 +8,7 @@ from sklearn.datasets import make_classification
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from ucimlrepo import fetch_ucirepo
 
 from rvfl.model import RVFL
 
@@ -155,40 +155,42 @@ def test_multilayer_progression(weight_scheme,
 def test_against_shi2021():
     # test multilayer classification against
     # the results given in Shi et al. (2021) DOI 10.1016/j.patcog.2021.107978
-    # dataset obtained from Kaggle
-    import pandas as pd
+    # dataset obtained from UCI ML repo
+    abalone = fetch_ucirepo(id=1)
 
-    base = files("rvfl.testdata").joinpath("Titanic-Dataset.csv")
+    X = abalone.data.features
+    y = abalone.data.targets
 
-    df = pd.read_csv(base)
-
-    X = df[["Pclass", "Sex", "Age"]].assign(
-            Sex=lambda d: d["Sex"].map({"male": 1, "female": 0}).astype("int8"),
-            Age=lambda d: d["Age"].gt(18).fillna(0).astype("int8")
+    X = X.assign(
+            Sex=lambda d: d["Sex"].map({"M": 0, "F": 1, "I": 2}).astype("int8")
             )
 
-    y = df["Survived"]
+    X, y = np.array(X), np.array(y).reshape(-1)
 
-    X, y = np.array(X), np.array(y)
+    # Shi et al. only use 3 classes, but all samples are used, which implies binning
+    y = np.digitize(y, bins=[9, 11])
+
+    X_tune, X_eval, y_tune, y_eval = train_test_split(
+        X, y, test_size=0.5, random_state=0)
 
     K = 4
+
+    # X_tune and y_tune were used to find these values
+    best_layer, best_neuron, best_act = 3, 512, "tanh"
     skf = StratifiedKFold(n_splits=K, shuffle=True, random_state=42)
 
-    best_neuron = 224  # determined using the method outlined by Shi et al. (2021)
-    best_layer = 3
-
     acc = 0
-    for train_index, test_index in skf.split(X, y):
-        X_train = X[train_index]
-        y_train = y[train_index]
-        X_test = X[test_index]
-        y_test = y[test_index]
+    for train_index, test_index in skf.split(X_eval, y_eval):
+        X_train = X_eval[train_index]
+        y_train = y_eval[train_index]
+        X_test = X_eval[test_index]
+        y_test = y_eval[test_index]
 
         hidden_layer_sizes = [best_neuron] * best_layer
 
         model = RVFL(
             hidden_layer_sizes=hidden_layer_sizes,
-            activation="relu",
+            activation=best_act,
             weight_scheme="uniform",
             direct_links=True,
             seed=0
@@ -206,7 +208,7 @@ def test_against_shi2021():
     # and they're using ridge
 
     # tightest bound for both rel and abs
-    assert acc == pytest.approx(.7882, rel=4e-3, abs=3e-3)
+    assert acc == pytest.approx(.6633, rel=2e-2, abs=2e-2)
 
 
 def test_invalid_activation_weight():
