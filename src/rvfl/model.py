@@ -72,26 +72,26 @@ class RVFL:
 
         # beta shape: (n_hidden_final+n_features, n_classes-1)
         # or (n_hidden_final, n_classes-1)
-        
+
         # If reg_alpha is zero or very close to zero,
         # use direct solve using MoorePenrose Pseudo-Inverse
-        # Otherwise, use ridge regularized form of solution 
+        # Otherwise, use ridge regularized form of solution
         tol = 1e-14
-        if abs(self.reg_alpha) < tol: 
+        if abs(self.reg_alpha) < tol:
             self.beta = np.linalg.pinv(D) @ Y
         else:
             DT = D.transpose()
-            
-            if (D.shape[1] <= D.shape[0]) : 
-                I = self.reg_alpha * np.identity(D.shape[1])
+
+            if (D.shape[1] <= D.shape[0]):
+                scaledIMat = self.reg_alpha * np.identity(D.shape[1])
                 DTD = DT @ D
                 DTY = DT @ Y
-                self.beta = np.linalg.inv(DTD + I) @ DTY
+                self.beta = np.linalg.inv(DTD + scaledIMat) @ DTY
             else:
-                I = self.reg_alpha * np.identity(D.shape[0])
+                scaledIMat = self.reg_alpha * np.identity(D.shape[0])
                 DDT = D @ DT
-                self.beta = DT @ np.linalg.inv(DDT + I) @ Y
-  
+                self.beta = DT @ np.linalg.inv(DDT + scaledIMat) @ Y
+
     def predict(self, X):
 
         out = self.predict_proba(X)
