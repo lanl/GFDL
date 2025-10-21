@@ -168,15 +168,35 @@ def test_against_shi2021():
     X, y = np.array(X), np.array(y).reshape(-1)
 
     # Shi et al. only use 3 classes, but all samples are used, which implies binning
-    y = np.digitize(y, bins=[9, 11])
+    # they do not specify the bins used, so I used my best judgement
+    y = np.digitize(y, bins=[7, 11])
 
+    # Shi et al. used half of the titanic dataset to tune
+    # so I assumed they did the same for this dataset
     X_tune, X_eval, y_tune, y_eval = train_test_split(
         X, y, test_size=0.5, random_state=0)
 
+    # Shi et al. used 4 folds on the titanic dataset
+    # I inferred that they also used 4 folds for this dataset
     K = 4
 
-    # X_tune and y_tune were used to find these values
+    # X_tune and y_tune were used to find the hyperparameters
+    # using Shi et al.'s two-stage tuning method, disregarding
+    # parameter C and tuning the activation function instead
+    """
+    For RVFL based models, we use a two-stage tuning method to obtain
+    their best hyperparameter configurations. The two-stage tuning can be
+    performed by the following steps: 1) Fix the number layers to 2, and
+    then select the optimal number of neurons (N*) and regularization
+    parameter (C*) using a coarse range for N and C. 2) Tune the number
+    of layers and fine tune the N, C parameters by considering only a fine
+    range in the neighborhood of N* and C*.
+
+    Shi et al. (2021) https://doi.org/10.1016/j.patcog.2021.107978
+    """
     best_layer, best_neuron, best_act = 3, 512, "tanh"
+
+    # The actual splits used in the paper were not specified
     skf = StratifiedKFold(n_splits=K, shuffle=True, random_state=42)
 
     acc = 0
