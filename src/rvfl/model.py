@@ -13,7 +13,8 @@ class RVFL:
         activation: str = "identity",
         weight_scheme: str = "uniform",
         direct_links: bool = True,
-        seed: int = None
+        seed: int = None,
+        reg_alpha: float = 0.0
     ):
         self.hidden_layer_sizes = np.array(hidden_layer_sizes)
         name, fn = resolve_activation(activation)
@@ -21,6 +22,7 @@ class RVFL:
         self._activation_fn = fn
         self.direct_links = direct_links
         self.seed = seed
+        self.reg_alpha = reg_alpha
         self._weights(weight_scheme)
 
     def fit(self, X, y):
@@ -64,15 +66,32 @@ class RVFL:
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
 
-        # phi shape: (n_samples, n_hidden_final+n_features)
+        # design matrix shape: (n_samples, n_hidden_final+n_features)
         # or (n_samples, n_hidden_final)
-        Phi = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
+        D = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
 
         # beta shape: (n_hidden_final+n_features, n_classes-1)
         # or (n_hidden_final, n_classes-1)
-
-        self.beta = np.linalg.pinv(Phi) @ Y
-
+        
+        # If reg_alpha is zero or very close to zero,
+        # use direct solve using MoorePenrose Pseudo-Inverse
+        # Otherwise, use ridge regularized form of solution 
+        tol = 1e-14
+        if abs(self.reg_alpha) < tol: 
+            self.beta = np.linalg.pinv(D) @ Y
+        else:
+            DT = D.transpose()
+            
+            if (D.shape[1] <= D.shape[0]) : 
+                I = self.reg_alpha * np.identity(D.shape[1])
+                DTD = DT @ D
+                DTY = DT @ Y
+                self.beta = np.linalg.inv(DTD + I) @ DTY
+            else:
+                I = self.reg_alpha * np.identity(D.shape[0])
+                DDT = D @ DT
+                self.beta = DT @ np.linalg.inv(DDT + I) @ Y
+  
     def predict(self, X):
 
         out = self.predict_proba(X)
