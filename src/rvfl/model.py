@@ -14,7 +14,7 @@ class RVFL:
         weight_scheme: str = "uniform",
         direct_links: bool = True,
         seed: int = None,
-        reg_alpha: float = 0.0
+        reg_alpha: float = None
     ):
         self.hidden_layer_sizes = np.array(hidden_layer_sizes)
         name, fn = resolve_activation(activation)
@@ -73,11 +73,12 @@ class RVFL:
         # beta shape: (n_hidden_final+n_features, n_classes-1)
         # or (n_hidden_final, n_classes-1)
 
-        # If reg_alpha is zero or very close to zero,
-        # use direct solve using MoorePenrose Pseudo-Inverse
+        # If reg_alpha is None, use direct solve using
+        # MoorePenrose Pseudo-Inverse.
         # Otherwise, use ridge regularized form of solution
-        tol = 1e-14
-        if abs(self.reg_alpha) < tol:
+        # as presented in Shi et al. (2021), Equations 2 and 3
+        # https://doi.org/10.1016/j.patcog.2021.107978
+        if self.reg_alpha is None:
             self.beta = np.linalg.pinv(D) @ Y
         else:
             DT = D.transpose()

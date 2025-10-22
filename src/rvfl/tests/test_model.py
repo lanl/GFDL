@@ -241,7 +241,8 @@ def test_invalid_activation_weight():
 @pytest.mark.parametrize("hidden_layer_sizes", [(10,), (100,)])
 @pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize("activation", activations)
-def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation):
+@pytest.mark.parametrize("alpha", [None, 0.5, 1])
+def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation, alpha):
     # test binary and multi-class classification against
     # the open source graforvfl library on some synthetic
     # datasets
@@ -253,7 +254,8 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation)
                  activation=activation,
                  weight_scheme="uniform",
                  direct_links=1,
-                 seed=0)
+                 seed=0,
+                 reg_alpha=alpha)
     model.fit(X_train, y_train)
 
     scl = StandardScaler()
@@ -262,7 +264,7 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation)
     grafo_rvfl = graforvfl.RvflClassifier(size_hidden=hidden_layer_sizes[0],
                                           act_name=grafo_act,
                                           weight_initializer="random_uniform",
-                                          reg_alpha=None,
+                                          reg_alpha=alpha,
                                           seed=0)
 
     grafo_rvfl.fit(scl.fit_transform(X_train), y_train)
