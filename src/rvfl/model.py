@@ -1,6 +1,7 @@
 # rvfl/model.py
 import numpy as np
 from scipy.special import logsumexp
+from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from rvfl.activations import resolve_activation
@@ -13,7 +14,8 @@ class RVFL:
         activation: str = "identity",
         weight_scheme: str = "uniform",
         direct_links: bool = True,
-        seed: int = None
+        seed: int = None,
+        reg_alpha: float = None
     ):
         self.hidden_layer_sizes = np.array(hidden_layer_sizes)
         name, fn = resolve_activation(activation)
@@ -22,6 +24,10 @@ class RVFL:
         self.direct_links = direct_links
         self.seed = seed
         self._weights(weight_scheme)
+
+        if reg_alpha is not None and reg_alpha < 0.0:
+            raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
+        self.reg_alpha = reg_alpha
 
     def fit(self, X, y):
         # shape: (n_samples, n_features)
@@ -34,7 +40,7 @@ class RVFL:
 
         # onehot y
         # (this is necessary for everything beyond binary classification)
-        self.enc = OneHotEncoder(handle_unknown="ignore")
+        self.enc = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
         Y = self.enc.fit_transform(y.reshape(-1, 1))
 
@@ -64,14 +70,21 @@ class RVFL:
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
 
-        # phi shape: (n_samples, n_hidden_final+n_features)
+        # design matrix shape: (n_samples, n_hidden_final+n_features)
         # or (n_samples, n_hidden_final)
-        Phi = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
+        D = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
 
         # beta shape: (n_hidden_final+n_features, n_classes-1)
         # or (n_hidden_final, n_classes-1)
 
-        self.beta = np.linalg.pinv(Phi) @ Y
+        # If reg_alpha is None, use direct solve using
+        # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
+        if self.reg_alpha is None:
+            self.beta = np.linalg.pinv(D) @ Y
+        else:
+            ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
+            ridge.fit(D, Y)
+            self.beta = ridge.coef_.T
 
     def predict(self, X):
 
