@@ -238,6 +238,11 @@ def test_invalid_activation_weight():
         RVFL(100, "identity", "bogus_weight", 0, 0)
 
 
+def test_invalid_alpha():
+    with pytest.raises(ValueError, match=r"Negative reg\_alpha"):
+        RVFL(100, "identity", "uniform", 0, 0, -10)
+
+
 @pytest.mark.parametrize("hidden_layer_sizes", [(10,), (100,)])
 @pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize("activation", activations)

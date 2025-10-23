@@ -1,6 +1,7 @@
 # rvfl/model.py
 import numpy as np
 from scipy.special import logsumexp
+from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from rvfl.activations import resolve_activation
@@ -22,8 +23,11 @@ class RVFL:
         self._activation_fn = fn
         self.direct_links = direct_links
         self.seed = seed
-        self.reg_alpha = reg_alpha
         self._weights(weight_scheme)
+
+        if reg_alpha is not None and reg_alpha < 0.0:
+            raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
+        self.reg_alpha = reg_alpha
 
     def fit(self, X, y):
         # shape: (n_samples, n_features)
@@ -36,7 +40,7 @@ class RVFL:
 
         # onehot y
         # (this is necessary for everything beyond binary classification)
-        self.enc = OneHotEncoder(handle_unknown="ignore")
+        self.enc = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
         Y = self.enc.fit_transform(y.reshape(-1, 1))
 
@@ -74,24 +78,13 @@ class RVFL:
         # or (n_hidden_final, n_classes-1)
 
         # If reg_alpha is None, use direct solve using
-        # MoorePenrose Pseudo-Inverse.
-        # Otherwise, use ridge regularized form of solution
-        # as presented in Shi et al. (2021), Equations 2 and 3
-        # https://doi.org/10.1016/j.patcog.2021.107978
+        # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
             self.beta = np.linalg.pinv(D) @ Y
         else:
-            DT = D.transpose()
-
-            if (D.shape[1] <= D.shape[0]):
-                scaledIMat = self.reg_alpha * np.identity(D.shape[1])
-                DTD = DT @ D
-                DTY = DT @ Y
-                self.beta = np.linalg.inv(DTD + scaledIMat) @ DTY
-            else:
-                scaledIMat = self.reg_alpha * np.identity(D.shape[0])
-                DDT = D @ DT
-                self.beta = DT @ np.linalg.inv(DDT + scaledIMat) @ Y
+            ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
+            ridge.fit(D, Y)
+            self.beta = ridge.coef_.T
 
     def predict(self, X):
 
