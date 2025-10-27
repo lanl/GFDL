@@ -10,7 +10,7 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from ucimlrepo import fetch_ucirepo
 
-from rvfl.model import RVFL
+from rvfl.model import RVFLClassifier
 
 activations = ["relu", "tanh", "sigmoid", "identity"]
 weights = ["zeros", "uniform", "range"]
@@ -32,7 +32,8 @@ def test_model(hidden_layer_sizes, n_classes, activation, weight_scheme, direct_
                                n_informative=8,
                                random_state=42)
 
-    model = RVFL(hidden_layer_sizes, activation, weight_scheme, direct_links, 0)
+    model = RVFLClassifier(hidden_layer_sizes, activation, weight_scheme,
+                           direct_links, 0)
 
     model.fit(X, y)
 
@@ -79,7 +80,7 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
                                n_informative=8,
                                random_state=42)
 
-    model = RVFL(
+    model = RVFLClassifier(
         hidden_layer_sizes=hidden_layer_size,
         activation="identity",
         weight_scheme=weight_scheme,
@@ -139,7 +140,7 @@ def test_multilayer_progression(weight_scheme,
                                class_sep=0.5)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
                                                         random_state=0)
-    model = RVFL(
+    model = RVFLClassifier(
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
         weight_scheme=weight_scheme,
@@ -208,7 +209,7 @@ def test_against_shi2021():
 
         hidden_layer_sizes = [best_neuron] * best_layer
 
-        model = RVFL(
+        model = RVFLClassifier(
             hidden_layer_sizes=hidden_layer_sizes,
             activation=best_act,
             weight_scheme="uniform",
@@ -233,14 +234,14 @@ def test_against_shi2021():
 
 def test_invalid_activation_weight():
     with pytest.raises(ValueError, match="is not supported"):
-        RVFL(100, "bogus_activation", "random_normal", 0, 0)
+        RVFLClassifier(100, "bogus_activation", "random_normal", 0, 0)
     with pytest.raises(ValueError, match="is not supported"):
-        RVFL(100, "identity", "bogus_weight", 0, 0)
+        RVFLClassifier(100, "identity", "bogus_weight", 0, 0)
 
 
 def test_invalid_alpha():
     with pytest.raises(ValueError, match=r"Negative reg\_alpha"):
-        RVFL(100, "identity", "uniform", 0, 0, -10)
+        RVFLClassifier(100, "identity", "uniform", 0, 0, -10)
 
 
 @pytest.mark.parametrize("hidden_layer_sizes", [(10,), (100,)])
@@ -255,7 +256,7 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
                                n_informative=8)
     X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.2,
                                                         random_state=0)
-    model = RVFL(hidden_layer_sizes=hidden_layer_sizes,
+    model = RVFLClassifier(hidden_layer_sizes=hidden_layer_sizes,
                  activation=activation,
                  weight_scheme="uniform",
                  direct_links=1,

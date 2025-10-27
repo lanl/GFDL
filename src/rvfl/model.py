@@ -29,20 +29,11 @@ class RVFL:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
         self.reg_alpha = reg_alpha
 
-    def fit(self, X, y):
-        # shape: (n_samples, n_features)
-        self.scaler = StandardScaler()
-        X = self.scaler.fit_transform(X)
-
+    def fit(self, X, Y):
+        # Assumption : X, Y have been pre-processed.
+        # X shape: (n_samples, n_features)
+        # Y shape: (n_samples, n_classes-1)
         self.N = X.shape[1]
-
-        self.classes = np.unique(y)
-
-        # onehot y
-        # (this is necessary for everything beyond binary classification)
-        self.enc = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-        # shape: (n_samples, n_classes-1)
-        Y = self.enc.fit_transform(y.reshape(-1, 1))
 
         # weights shape: (n_layers,)
         # biases shape: (n_layers,)
@@ -87,15 +78,6 @@ class RVFL:
             self.beta = ridge.coef_.T
 
     def predict(self, X):
-
-        out = self.predict_proba(X)
-        y_hat = self.classes[np.argmax(out, axis=1)]
-
-        return y_hat
-
-    def predict_proba(self, X):
-        X = self.scaler.transform(X)
-
         Hs = []
         H_prev = X
         for W, b in zip(self.W, self.b, strict=False):
@@ -103,10 +85,9 @@ class RVFL:
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
 
-        Phi = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
+        D = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
 
-        out = Phi @ self.beta
-        out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+        out = D @ self.beta
 
         return out
 
@@ -142,3 +123,49 @@ class RVFL:
                     f"weight scheme='{weight_scheme}' is not supported;\
                     choose from {allowed}"
                 )
+
+
+class RVFLClassifier(RVFL):
+    def __init__(
+        self,
+        hidden_layer_sizes: np.typing.ArrayLike = (100,),
+        activation: str = "identity",
+        weight_scheme: str = "uniform",
+        direct_links: bool = True,
+        seed: int = None,
+        reg_alpha: float = None
+    ):
+        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
+                       activation=activation,
+                       weight_scheme=weight_scheme,
+                       direct_links=direct_links,
+                       seed=seed,
+                       reg_alpha=reg_alpha)
+
+    def fit(self, X, y):
+        # shape: (n_samples, n_features)
+        self.scaler = StandardScaler()
+        X = self.scaler.fit_transform(X)
+        self.classes = np.unique(y)
+
+        # onehot y
+        # (this is necessary for everything beyond binary classification)
+        self.enc = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+        # shape: (n_samples, n_classes-1)
+        Y = self.enc.fit_transform(y.reshape(-1, 1))
+
+        # call base fit method
+        super().fit(X, Y)
+
+    def predict(self, X):
+        out = self.predict_proba(X)
+        y_hat = self.classes[np.argmax(out, axis=1)]
+
+        return y_hat
+
+    def predict_proba(self, X):
+        X = self.scaler.transform(X)
+        out = super().predict(X)
+        out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+
+        return out

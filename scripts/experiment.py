@@ -13,7 +13,7 @@ import seaborn as sns
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
-from rvfl.model import RVFL
+from rvfl.model import RVFLClassifier
 
 data = scipy.io.loadmat("./data/binaryalphadigs.mat", spmatrix=False)
 imgs = data["dat"]
@@ -35,16 +35,16 @@ for _, (train_index, test_index) in enumerate(skf.split(X, y)):
     X_test = X[test_index]
     y_test = y[test_index]
     for w in weight_schemes:
-        rvfl_model = RVFL(
-            n_hidden=100,
+        rvfl_model = RVFLClassifier(
+            hidden_layer_sizes=(100,),
             activation="sigmoid",
             weight_scheme=w,
             seed=42
             )
         rvfl_model.fit(X_train, y_train)
 
-        elm_model = RVFL(
-            n_hidden=100,
+        elm_model = RVFLClassifier(
+            hidden_layer_sizes=(100,),
             activation="sigmoid",
             weight_scheme=w,
             direct_links=False,
