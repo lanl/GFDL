@@ -13,14 +13,16 @@ from ucimlrepo import fetch_ucirepo
 
 from rvfl.model import RVFLClassifier
 
-activations = ["relu", "tanh", "sigmoid", "identity"]
-weights = ["zeros", "uniform", "range"]
+activations = ["relu", "tanh", "sigmoid", "identity", "softmax", "softmin",
+               "log_sigmoid", "log_softmax"]
+weights = ["zeros", "uniform", "range", "normal", "he_uniform", "lecun_uniform",
+           "glorot_uniform", "he_normal", "lecun_normal", "glorot_normal"]
 
 
 @pytest.mark.parametrize(
-        "hidden_layer_sizes",
-        [(10,), (10, 10), (5, 10, 15, 20), (100,)]
-        )
+       "hidden_layer_sizes",
+       [(10,), (10, 10), (5, 10, 15, 20), (100,)]
+       )
 @pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize("direct_links", [0, 1])
 @pytest.mark.parametrize("activation", activations)

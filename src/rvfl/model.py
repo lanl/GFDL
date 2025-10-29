@@ -43,10 +43,6 @@ class RVFL:
         self.W.append(
             self.weight_mode(self.N, self.hidden_layer_sizes[0], first_layer=True)
             )
-        # self.b.append(
-        #    self.weight_mode(self.hidden_layer_sizes[0], 1, first_layer=True)
-        #    .reshape(-1)
-        #    )
         self.b.append(
             self.weight_mode(1, self.hidden_layer_sizes[0], first_layer=True)
             .reshape(-1)
@@ -55,7 +51,6 @@ class RVFL:
             # (n_hidden, n_features)
             self.W.append(self.weight_mode(self.hidden_layer_sizes[i], layer))
             # (n_hidden,)
-            # self.b.append(self.weight_mode(layer, 1).reshape(-1))
             self.b.append(self.weight_mode(1, layer).reshape(-1))
 
         # hypothesis space shape: (n_layers,)
@@ -192,7 +187,9 @@ class RVFL:
                     return self.rng.normal(0, var, (h, d))
                 self.weight_mode = _glorot_normal
             case _:
-                allowed = {"zeros", "uniform", "range", "normal"}
+                allowed = {"zeros", "uniform", "range", "normal", "he_uniform",
+                           "lecun_uniform", "glorot_uniform", "he_normal",
+                           "lecun_normal", "glorot_normal"}
                 raise ValueError(
                     f"weight scheme='{weight_scheme}' is not supported;\
                     choose from {allowed}"

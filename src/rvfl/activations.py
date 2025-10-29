@@ -30,11 +30,13 @@ def softmin(z):
 
 
 def log_sigmoid(z):
-    return np.log(sigmoid(z))
+    return -np.logaddexp(0.0, -z)
 
 
 def log_softmax(z):
-    return np.log(softmax(z))
+    z = z - np.max(z, axis=-1, keepdims=True)
+    logsumexp = np.log(np.sum(np.exp(z), axis=-1, keepdims=True))
+    return z - logsumexp
 
 
 ACTIVATIONS = {
