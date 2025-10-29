@@ -43,15 +43,20 @@ class RVFL:
         self.W.append(
             self.weight_mode(self.N, self.hidden_layer_sizes[0], first_layer=True)
             )
+        # self.b.append(
+        #    self.weight_mode(self.hidden_layer_sizes[0], 1, first_layer=True)
+        #    .reshape(-1)
+        #    )
         self.b.append(
-            self.weight_mode(self.hidden_layer_sizes[0], 1, first_layer=True)
+            self.weight_mode(1, self.hidden_layer_sizes[0], first_layer=True)
             .reshape(-1)
             )
         for i, layer in enumerate(self.hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W.append(self.weight_mode(self.hidden_layer_sizes[i], layer))
             # (n_hidden,)
-            self.b.append(self.weight_mode(layer, 1).reshape(-1))
+            # self.b.append(self.weight_mode(layer, 1).reshape(-1))
+            self.b.append(self.weight_mode(1, layer).reshape(-1))
 
         # hypothesis space shape: (n_layers,)
         Hs = []
@@ -102,13 +107,6 @@ class RVFL:
                 def _zeros(d, h, **kwargs):
                     return np.zeros((h, d))
                 self.weight_mode = _zeros
-            case "uniform":
-                def _uniform(d, h, *, first_layer=False, **kwargs):
-                    if first_layer:
-                        self.rng = self.get_generator(self.seed)
-                        return self.rng.uniform(0, 1, (h, d))
-                    return self.rng.uniform(0, 1, (h, d))
-                self.weight_mode = _uniform
             case "range":
                 def _range(d, h, **kwargs):
                     s = np.arange(d * h)
@@ -117,8 +115,84 @@ class RVFL:
                     s = np.nan_to_num(s)
                     return s.reshape(h, d)
                 self.weight_mode = _range
+            case "uniform":
+                def _uniform(d, h, *, first_layer=False, **kwargs):
+                    if first_layer:
+                        self.rng = self.get_generator(self.seed)
+                        return self.rng.uniform(0, 1, (h, d))
+                    return self.rng.uniform(0, 1, (h, d))
+                self.weight_mode = _uniform
+            case "he_uniform":
+                def _he_uniform(d, h, *, first_layer=False, **kwargs):
+                    # This implementation deviates from the standard expression where
+                    # the number of input features (d) are always used to compute the
+                    # limit. However, using the standard form returned a different
+                    # answer from GrafoRVFL, which uses the output size i.e. hidden
+                    # layer size instead (from ChatGPT). Needs further exploration
+                    # of why they deviate from the standard form.
+                    # If we choose to use the standard form, then our tests cannot be
+                    # used to compare against GrafoRVFL as the results could be order
+                    # one difference or higher.
+                    limit = np.sqrt(6 / h)
+                    if first_layer:
+                        self.rng = self.get_generator(self.seed)
+                        return self.rng.uniform(-limit, limit, (h, d))
+                    return self.rng.uniform(-limit, limit, (h, d))
+                self.weight_mode = _he_uniform
+            case "lecun_uniform":
+                def _lecun_uniform(d, h, *, first_layer=False, **kwargs):
+                    # Same comment as "he_uniform"
+                    limit = np.sqrt(3 / h)
+                    if first_layer:
+                        self.rng = self.get_generator(self.seed)
+                        return self.rng.uniform(-limit, limit, (h, d))
+                    return self.rng.uniform(-limit, limit, (h, d))
+                self.weight_mode = _lecun_uniform
+            case "glorot_uniform":
+                def _glorot_uniform(d, h, *, first_layer=False, **kwargs):
+                    fan_avg = 0.5 * (d + h)
+                    limit = np.sqrt(3 / fan_avg)
+                    if first_layer:
+                        self.rng = self.get_generator(self.seed)
+                        return self.rng.uniform(-limit, limit, (h, d))
+                    return self.rng.uniform(-limit, limit, (h, d))
+                self.weight_mode = _glorot_uniform
+            case "normal":
+                def _normal(d, h, *, first_layer=False, **kwargs):
+                    if first_layer:
+                        self.rng = self.get_generator(self.seed)
+                        return self.rng.normal(0, 1, (h, d))
+                    return self.rng.normal(0, 1, (h, d))
+                self.weight_mode = _normal
+            case "he_normal":
+                def _he_normal(d, h, *, first_layer=False, **kwargs):
+                    # Same comment as "he_uniform"
+                    var = np.sqrt(2 / h)
+                    if first_layer:
+                        self.rng = self.get_generator(self.seed)
+                        return self.rng.normal(0, var, (h, d))
+                    return self.rng.normal(0, var, (h, d))
+                self.weight_mode = _he_normal
+            case "lecun_normal":
+                def _lecun_normal(d, h, *, first_layer=False, **kwargs):
+                    # Same comment as "he_uniform"
+                    var = 1 / np.sqrt(h)
+                    if first_layer:
+                        self.rng = self.get_generator(self.seed)
+                        return self.rng.normal(0, var, (h, d))
+                    return self.rng.normal(0, var, (h, d))
+                self.weight_mode = _lecun_normal
+            case "glorot_normal":
+                def _glorot_normal(d, h, *, first_layer=False, **kwargs):
+                    fan_avg = 0.5 * (d + h)
+                    var = np.sqrt(1 / fan_avg)
+                    if first_layer:
+                        self.rng = self.get_generator(self.seed)
+                        return self.rng.normal(0, var, (h, d))
+                    return self.rng.normal(0, var, (h, d))
+                self.weight_mode = _glorot_normal
             case _:
-                allowed = {"zeros", "uniform", "range"}
+                allowed = {"zeros", "uniform", "range", "normal"}
                 raise ValueError(
                     f"weight scheme='{weight_scheme}' is not supported;\
                     choose from {allowed}"

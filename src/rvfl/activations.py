@@ -19,12 +19,34 @@ def identity(z):
     return z
 
 
+def softmax(z):
+    # softmax over each sample
+    ez = np.exp(z - np.max(z, axis=-1, keepdims=True))
+    return ez / np.sum(ez, axis=-1, keepdims=True)
+
+
+def softmin(z):
+    return softmax(-z)
+
+
+def log_sigmoid(z):
+    return np.log(sigmoid(z))
+
+
+def log_softmax(z):
+    return np.log(softmax(z))
+
+
 ACTIVATIONS = {
     "relu": relu,
     "tanh": tanh,
     "sigmoid": sigmoid,
     "identity": identity,
     "linear": identity,
+    "softmax": softmax,
+    "softmin": softmin,
+    "log_sigmoid": log_sigmoid,
+    "log_softmax": log_softmax,
 }
 
 
