@@ -8,6 +8,7 @@ from sklearn.datasets import make_classification
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.utils.estimator_checks import parametrize_with_checks
 from ucimlrepo import fetch_ucirepo
 
 from rvfl.model import RVFLClassifier
@@ -37,24 +38,24 @@ def test_model(hidden_layer_sizes, n_classes, activation, weight_scheme, direct_
 
     model.fit(X, y)
 
-    assert len(model.W) == len(hidden_layer_sizes)
-    assert model.W[0].T.shape == (d, hidden_layer_sizes[0])
+    assert len(model.W_) == len(hidden_layer_sizes)
+    assert model.W_[0].T.shape == (d, hidden_layer_sizes[0])
 
     for layer, w, b, i in zip(
         hidden_layer_sizes[1:],
-        model.W[1:],
-        model.b[1:],
-        range(len(model.W) - 1), strict=False
+        model.W_[1:],
+        model.b_[1:],
+        range(len(model.W_) - 1), strict=False
         ):
         assert w.T.shape == (hidden_layer_sizes[i], layer)
         assert b.shape == (layer,)
 
     if direct_links:
-        assert model.beta.shape == (
+        assert model.beta_.shape == (
             hidden_layer_sizes[-1] + d, len(np.arange(n_classes))
             )
     else:
-        assert model.beta.shape == (hidden_layer_sizes[-1], len(np.arange(n_classes)))
+        assert model.beta_.shape == (hidden_layer_sizes[-1], len(np.arange(n_classes)))
 
     pred = model.predict(X[:10])
     assert set(np.unique(pred)).issubset(set(np.arange(n_classes)))
@@ -63,7 +64,7 @@ def test_model(hidden_layer_sizes, n_classes, activation, weight_scheme, direct_
     P = model.predict_proba(X[:10])
     np.testing.assert_allclose(P.sum(axis=1), 1.0, atol=1e-6)
     assert (P >= 0).all() and (P <= 1).all()
-    np.testing.assert_array_equal(pred, model.classes[np.argmax(P, axis=1)])
+    np.testing.assert_array_equal(pred, model.classes_[np.argmax(P, axis=1)])
 
 
 @pytest.mark.parametrize("weight_scheme", weights)
@@ -97,13 +98,13 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
     Y = enc.fit_transform(y.reshape(-1, 1))
 
     # collapsing weights and biases for representation as linear operation
-    weights = [w.T for w in model.W]
+    weights = [w.T for w in model.W_]
     T = np.eye(weights[-1].shape[1])
-    bias = model.b[-1].copy()
+    bias = model.b_[-1].copy()
 
-    for i in range(len(model.b) - 2, -1, -1):
+    for i in range(len(model.b_) - 2, -1, -1):
         T = weights[i + 1] @ T
-        bias += model.b[i] @ T
+        bias += model.b_[i] @ T
 
     weights = np.linalg.multi_dot(weights) if len(weights) > 1 else weights[0]
 
@@ -111,7 +112,7 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
 
     expected_beta = np.linalg.pinv(expected_phi) @ Y
 
-    np.testing.assert_allclose(model.beta, expected_beta)
+    np.testing.assert_allclose(model.beta_, expected_beta)
 
 
 @pytest.mark.parametrize("hidden_layer_sizes, activation, weight_scheme, exp_auc", [
@@ -233,15 +234,28 @@ def test_against_shi2021():
 
 
 def test_invalid_activation_weight():
+    X = np.zeros((30, 4))
+    y = np.zeros((30,))
+    invalid_act = RVFLClassifier(100, "bogus_activation", "random_normal", 0, 0)
+    invalid_weight = RVFLClassifier(100, "identity", "bogus_weight", 0, 0)
+    # the sklearn estimator API bans input validation in __init__,
+    # so we need to call fit() for error handling to kick in:
+    # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
     with pytest.raises(ValueError, match="is not supported"):
-        RVFLClassifier(100, "bogus_activation", "random_normal", 0, 0)
+        invalid_act.fit(X, y)
     with pytest.raises(ValueError, match="is not supported"):
-        RVFLClassifier(100, "identity", "bogus_weight", 0, 0)
+        invalid_weight.fit(X, y)
 
 
 def test_invalid_alpha():
+    # the sklearn estimator API bans input validation in __init__,
+    # so we need to call fit() for error handling to kick in:
+    # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
+    X = np.zeros((30, 4))
+    y = np.zeros((30,))
+    bad_est = RVFLClassifier(100, "identity", "uniform", 0, 0, -10)
     with pytest.raises(ValueError, match=r"Negative reg\_alpha"):
-        RVFLClassifier(100, "identity", "uniform", 0, 0, -10)
+        bad_est.fit(X, y)
 
 
 @pytest.mark.parametrize("hidden_layer_sizes", [(10,), (100,)])
@@ -279,3 +293,8 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
     expected_proba = grafo_rvfl.predict_proba(scl.transform(X_test))
 
     np.testing.assert_allclose(actual_proba, expected_proba)
+
+
+@parametrize_with_checks([RVFLClassifier()])
+def test_sklearn_api_conformance(estimator, check):
+    check(estimator)
