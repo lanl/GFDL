@@ -120,8 +120,9 @@ class RVFL:
             case "he_uniform":
                 def _he_uniform(d, h, *, first_layer=False, **kwargs):
                     # This implementation deviates from the standard expression where
-                    # the number of input features (d) are always used to compute the
-                    # limit. However, using the standard form returned a different
+                    # the number of input features (d) are used to compute the limit.
+                    # https://faroit.com/keras-docs/2.0.0/initializers/#he_uniform
+                    # However, using the standard form returned a different
                     # answer from GrafoRVFL, which uses the output size i.e. hidden
                     # layer size instead (from ChatGPT). Needs further exploration
                     # of why they deviate from the standard form.
@@ -137,6 +138,7 @@ class RVFL:
             case "lecun_uniform":
                 def _lecun_uniform(d, h, *, first_layer=False, **kwargs):
                     # Same comment as "he_uniform"
+                    # https://faroit.com/keras-docs/2.0.0/initializers/#lecun_uniform
                     limit = np.sqrt(3 / h)
                     if first_layer:
                         self.rng = self.get_generator(self.seed)
@@ -145,6 +147,7 @@ class RVFL:
                 self.weight_mode = _lecun_uniform
             case "glorot_uniform":
                 def _glorot_uniform(d, h, *, first_layer=False, **kwargs):
+                    # https://faroit.com/keras-docs/2.0.0/initializers/#glorot_uniform
                     fan_avg = 0.5 * (d + h)
                     limit = np.sqrt(3 / fan_avg)
                     if first_layer:
@@ -162,6 +165,7 @@ class RVFL:
             case "he_normal":
                 def _he_normal(d, h, *, first_layer=False, **kwargs):
                     # Same comment as "he_uniform"
+                    # https://faroit.com/keras-docs/2.0.0/initializers/#he_normal
                     var = np.sqrt(2 / h)
                     if first_layer:
                         self.rng = self.get_generator(self.seed)
@@ -171,6 +175,7 @@ class RVFL:
             case "lecun_normal":
                 def _lecun_normal(d, h, *, first_layer=False, **kwargs):
                     # Same comment as "he_uniform"
+                    # https://www.tensorflow.org/api_docs/python/tf/keras/initializers/LecunNormal
                     var = 1 / np.sqrt(h)
                     if first_layer:
                         self.rng = self.get_generator(self.seed)
@@ -179,6 +184,7 @@ class RVFL:
                 self.weight_mode = _lecun_normal
             case "glorot_normal":
                 def _glorot_normal(d, h, *, first_layer=False, **kwargs):
+                    # https://faroit.com/keras-docs/2.0.0/initializers/#glorot_normal
                     fan_avg = 0.5 * (d + h)
                     var = np.sqrt(1 / fan_avg)
                     if first_layer:

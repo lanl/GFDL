@@ -1,5 +1,6 @@
 # rvfl/activations.py
 import numpy as np
+import scipy
 
 
 def relu(z):
@@ -11,8 +12,7 @@ def tanh(z):
 
 
 def sigmoid(z):
-    out = 1 / (1 + np.exp(-z))
-    return out
+    return scipy.special.expit(z)
 
 
 def identity(z):
@@ -21,8 +21,7 @@ def identity(z):
 
 def softmax(z):
     # softmax over each sample
-    ez = np.exp(z - np.max(z, axis=-1, keepdims=True))
-    return ez / np.sum(ez, axis=-1, keepdims=True)
+    return scipy.special.softmax(z, axis=-1)
 
 
 def softmin(z):
@@ -30,13 +29,11 @@ def softmin(z):
 
 
 def log_sigmoid(z):
-    return -np.logaddexp(0.0, -z)
+    return scipy.special.log_expit(z)
 
 
 def log_softmax(z):
-    z = z - np.max(z, axis=-1, keepdims=True)
-    logsumexp = np.log(np.sum(np.exp(z), axis=-1, keepdims=True))
-    return z - logsumexp
+    return scipy.special.log_softmax(z, axis=-1)
 
 
 ACTIVATIONS = {
