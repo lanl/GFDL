@@ -35,14 +35,7 @@ class RVFL(ClassifierMixin, BaseEstimator):
             self._rng = self.get_generator(self.seed)
             return self._rng.uniform(0, 1, (h, d))
         return self._rng.uniform(0, 1, (h, d))
-    
-    def _range(self, d, h, **kwargs):
-        s = np.arange(d * h)
-        s = np.subtract(s, np.mean(s))
-        s /= np.std(s)
-        s = np.nan_to_num(s)
-        return s.reshape(h, d)
-    
+
     def _he_uniform(self, d, h, *, first_layer=False, **kwargs):
         # This implementation deviates from the standard expression where
         # the number of input features (d) are used to compute the limit.
@@ -59,7 +52,7 @@ class RVFL(ClassifierMixin, BaseEstimator):
             self.rng = self.get_generator(self.seed)
             return self.rng.uniform(-limit, limit, (h, d))
         return self.rng.uniform(-limit, limit, (h, d))
-    
+
     def _lecun_uniform(self, d, h, *, first_layer=False, **kwargs):
         # Same comment as "he_uniform"
         # https://faroit.com/keras-docs/2.0.0/initializers/#lecun_uniform
@@ -68,7 +61,7 @@ class RVFL(ClassifierMixin, BaseEstimator):
             self.rng = self.get_generator(self.seed)
             return self.rng.uniform(-limit, limit, (h, d))
         return self.rng.uniform(-limit, limit, (h, d))
-    
+
     def _glorot_uniform(self, d, h, *, first_layer=False, **kwargs):
         # https://faroit.com/keras-docs/2.0.0/initializers/#glorot_uniform
         fan_avg = 0.5 * (d + h)
@@ -77,13 +70,13 @@ class RVFL(ClassifierMixin, BaseEstimator):
             self.rng = self.get_generator(self.seed)
             return self.rng.uniform(-limit, limit, (h, d))
         return self.rng.uniform(-limit, limit, (h, d))
-    
+
     def _normal(self, d, h, *, first_layer=False, **kwargs):
         if first_layer:
             self.rng = self.get_generator(self.seed)
             return self.rng.normal(0, 1, (h, d))
         return self.rng.normal(0, 1, (h, d))
-    
+
     def _he_normal(self, d, h, *, first_layer=False, **kwargs):
         # Same comment as "he_uniform"
         # https://faroit.com/keras-docs/2.0.0/initializers/#he_normal
@@ -92,7 +85,7 @@ class RVFL(ClassifierMixin, BaseEstimator):
             self.rng = self.get_generator(self.seed)
             return self.rng.normal(0, var, (h, d))
         return self.rng.normal(0, var, (h, d))
-    
+
     def _lecun_normal(self, d, h, *, first_layer=False, **kwargs):
         # Same comment as "he_uniform"
         # https://www.tensorflow.org/api_docs/python/tf/keras/initializers/LecunNormal
@@ -101,7 +94,7 @@ class RVFL(ClassifierMixin, BaseEstimator):
             self.rng = self.get_generator(self.seed)
             return self.rng.normal(0, var, (h, d))
         return self.rng.normal(0, var, (h, d))
-    
+
     def _glorot_normal(self, d, h, *, first_layer=False, **kwargs):
         # https://faroit.com/keras-docs/2.0.0/initializers/#glorot_normal
         fan_avg = 0.5 * (d + h)
@@ -195,21 +188,27 @@ class RVFL(ClassifierMixin, BaseEstimator):
             case "uniform":
                 self._weight_mode = self._uniform
             case "range":
-                self._weight_mode = self._range
+                def _range(d, h, **kwargs):
+                    s = np.arange(d * h)
+                    s = np.subtract(s, np.mean(s))
+                    s /= np.std(s)
+                    s = np.nan_to_num(s)
+                    return s.reshape(h, d)
+                self._weight_mode = _range
             case "he_uniform":
-                self.weight_mode = self._he_uniform
+                self._weight_mode = self._he_uniform
             case "lecun_uniform":
-                self.weight_mode = self._lecun_uniform
+                self._weight_mode = self._lecun_uniform
             case "glorot_uniform":
-                self.weight_mode = self._glorot_uniform
+                self._weight_mode = self._glorot_uniform
             case "normal":
-                self.weight_mode = self._normal
+                self._weight_mode = self._normal
             case "he_normal":
-                self.weight_mode = self._he_normal
+                self._weight_mode = self._he_normal
             case "lecun_normal":
-                self.weight_mode = self._lecun_normal
+                self._weight_mode = self._lecun_normal
             case "glorot_normal":
-                self.weight_mode = self._glorot_normal
+                self._weight_mode = self._glorot_normal
             case _:
                 allowed = {"zeros", "uniform", "range", "normal", "he_uniform",
                            "lecun_uniform", "glorot_uniform", "he_normal",
