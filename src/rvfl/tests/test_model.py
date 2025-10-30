@@ -51,11 +51,11 @@ def test_model(hidden_layer_sizes, n_classes, activation, weight_scheme, direct_
         assert b.shape == (layer,)
 
     if direct_links:
-        assert model.beta_.shape == (
+        assert model.coeff_.shape == (
             hidden_layer_sizes[-1] + d, len(np.arange(n_classes))
             )
     else:
-        assert model.beta_.shape == (hidden_layer_sizes[-1], len(np.arange(n_classes)))
+        assert model.coeff_.shape == (hidden_layer_sizes[-1], len(np.arange(n_classes)))
 
     pred = model.predict(X[:10])
     assert set(np.unique(pred)).issubset(set(np.arange(n_classes)))
@@ -112,7 +112,7 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
 
     expected_beta = np.linalg.pinv(expected_phi) @ Y
 
-    np.testing.assert_allclose(model.beta_, expected_beta)
+    np.testing.assert_allclose(model.coeff_, expected_beta)
 
 
 @pytest.mark.parametrize("hidden_layer_sizes, activation, weight_scheme, exp_auc", [

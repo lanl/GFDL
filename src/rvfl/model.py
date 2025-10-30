@@ -28,7 +28,7 @@ class RVFL(ClassifierMixin, BaseEstimator):
         self.reg_alpha = reg_alpha
 
     def _uniform(self, d, h, *, first_layer=False, **kwargs):
-        # NOTE: _uniform() had to split out for pickle/serialization
+        # NOTE: _uniform() had to be split out for pickle/serialization
         # for conformance with the sklearn estimator API:
         # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
         if first_layer:
@@ -40,10 +40,10 @@ class RVFL(ClassifierMixin, BaseEstimator):
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
         # Y shape: (n_samples, n_classes-1)
-        fn = resolve_activation(self.activation)[1]
-        self._activation_fn = fn
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
+        fn = resolve_activation(self.activation)[1]
+        self._activation_fn = fn
         self._N = X.shape[1]
         hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
         self._weights(self.weight_scheme)
@@ -84,11 +84,11 @@ class RVFL(ClassifierMixin, BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
-            self.beta_ = np.linalg.pinv(D) @ Y
+            self.coeff_ = np.linalg.pinv(D) @ Y
         else:
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
             ridge.fit(D, Y)
-            self.beta_ = ridge.coef_.T
+            self.coeff_ = ridge.coef_.T
         return self
 
     def predict(self, X):
@@ -102,7 +102,7 @@ class RVFL(ClassifierMixin, BaseEstimator):
 
         D = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
 
-        out = D @ self.beta_
+        out = D @ self.coeff_
 
         return out
 
