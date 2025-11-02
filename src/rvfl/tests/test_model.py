@@ -13,14 +13,16 @@ from ucimlrepo import fetch_ucirepo
 
 from rvfl.model import RVFLClassifier
 
-activations = ["relu", "tanh", "sigmoid", "identity"]
-weights = ["zeros", "uniform", "range"]
+activations = ["relu", "tanh", "sigmoid", "identity", "softmax", "softmin",
+               "log_sigmoid", "log_softmax"]
+weights = ["zeros", "range", "uniform", "normal", "he_uniform", "lecun_uniform",
+           "glorot_uniform", "he_normal", "lecun_normal", "glorot_normal"]
 
 
 @pytest.mark.parametrize(
-        "hidden_layer_sizes",
-        [(10,), (10, 10), (5, 10, 15, 20), (100,)]
-        )
+       "hidden_layer_sizes",
+       [(10,), (10, 10), (5, 10, 15, 20), (100,)]
+       )
 @pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize("direct_links", [0, 1])
 @pytest.mark.parametrize("activation", activations)
@@ -261,8 +263,10 @@ def test_invalid_alpha():
 @pytest.mark.parametrize("hidden_layer_sizes", [(10,), (100,)])
 @pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize("activation", activations)
+@pytest.mark.parametrize("weight_scheme", weights[2:])
 @pytest.mark.parametrize("alpha", [None, 0.5, 1])
-def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation, alpha):
+def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
+                                      weight_scheme, alpha):
     # test binary and multi-class classification against
     # the open source graforvfl library on some synthetic
     # datasets
@@ -272,7 +276,7 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
                                                         random_state=0)
     model = RVFLClassifier(hidden_layer_sizes=hidden_layer_sizes,
                  activation=activation,
-                 weight_scheme="uniform",
+                 weight_scheme=weight_scheme,
                  direct_links=1,
                  seed=0,
                  reg_alpha=alpha)
@@ -281,9 +285,16 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
     scl = StandardScaler()
 
     grafo_act = "none" if activation == "identity" else activation
+    if weight_scheme == "uniform":
+        grafo_wts = "random_uniform"
+    elif weight_scheme == "normal":
+        grafo_wts = "random_normal"
+    else:
+        grafo_wts = weight_scheme
+
     grafo_rvfl = graforvfl.RvflClassifier(size_hidden=hidden_layer_sizes[0],
                                           act_name=grafo_act,
-                                          weight_initializer="random_uniform",
+                                          weight_initializer=grafo_wts,
                                           reg_alpha=alpha,
                                           seed=0)
 

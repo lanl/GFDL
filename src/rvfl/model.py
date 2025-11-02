@@ -36,6 +36,74 @@ class RVFL(ClassifierMixin, BaseEstimator):
             return self._rng.uniform(0, 1, (h, d))
         return self._rng.uniform(0, 1, (h, d))
 
+    def _he_uniform(self, d, h, *, first_layer=False, **kwargs):
+        # This implementation deviates from the standard expression where
+        # the number of input features (d) are used to compute the limit.
+        # https://faroit.com/keras-docs/2.0.0/initializers/#he_uniform
+        # However, using the standard form returned a different
+        # answer from GrafoRVFL, which uses the output size i.e. hidden
+        # layer size instead (from ChatGPT). Needs further exploration
+        # of why they deviate from the standard form.
+        # If we choose to use the standard form, then our tests cannot be
+        # used to compare against GrafoRVFL as the results could be order
+        # one difference or higher.
+        limit = np.sqrt(6 / h)
+        if first_layer:
+            self.rng = self.get_generator(self.seed)
+            return self.rng.uniform(-limit, limit, (h, d))
+        return self.rng.uniform(-limit, limit, (h, d))
+
+    def _lecun_uniform(self, d, h, *, first_layer=False, **kwargs):
+        # Same comment as "he_uniform"
+        # https://faroit.com/keras-docs/2.0.0/initializers/#lecun_uniform
+        limit = np.sqrt(3 / h)
+        if first_layer:
+            self.rng = self.get_generator(self.seed)
+            return self.rng.uniform(-limit, limit, (h, d))
+        return self.rng.uniform(-limit, limit, (h, d))
+
+    def _glorot_uniform(self, d, h, *, first_layer=False, **kwargs):
+        # https://faroit.com/keras-docs/2.0.0/initializers/#glorot_uniform
+        fan_avg = 0.5 * (d + h)
+        limit = np.sqrt(3 / fan_avg)
+        if first_layer:
+            self.rng = self.get_generator(self.seed)
+            return self.rng.uniform(-limit, limit, (h, d))
+        return self.rng.uniform(-limit, limit, (h, d))
+
+    def _normal(self, d, h, *, first_layer=False, **kwargs):
+        if first_layer:
+            self.rng = self.get_generator(self.seed)
+            return self.rng.normal(0, 1, (h, d))
+        return self.rng.normal(0, 1, (h, d))
+
+    def _he_normal(self, d, h, *, first_layer=False, **kwargs):
+        # Same comment as "he_uniform"
+        # https://faroit.com/keras-docs/2.0.0/initializers/#he_normal
+        var = np.sqrt(2 / h)
+        if first_layer:
+            self.rng = self.get_generator(self.seed)
+            return self.rng.normal(0, var, (h, d))
+        return self.rng.normal(0, var, (h, d))
+
+    def _lecun_normal(self, d, h, *, first_layer=False, **kwargs):
+        # Same comment as "he_uniform"
+        # https://www.tensorflow.org/api_docs/python/tf/keras/initializers/LecunNormal
+        var = 1 / np.sqrt(h)
+        if first_layer:
+            self.rng = self.get_generator(self.seed)
+            return self.rng.normal(0, var, (h, d))
+        return self.rng.normal(0, var, (h, d))
+
+    def _glorot_normal(self, d, h, *, first_layer=False, **kwargs):
+        # https://faroit.com/keras-docs/2.0.0/initializers/#glorot_normal
+        fan_avg = 0.5 * (d + h)
+        var = np.sqrt(1 / fan_avg)
+        if first_layer:
+            self.rng = self.get_generator(self.seed)
+            return self.rng.normal(0, var, (h, d))
+        return self.rng.normal(0, var, (h, d))
+
     def fit(self, X, Y):
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
@@ -57,14 +125,14 @@ class RVFL(ClassifierMixin, BaseEstimator):
             self._weight_mode(self._N, hidden_layer_sizes[0], first_layer=True)
             )
         self.b_.append(
-            self._weight_mode(hidden_layer_sizes[0], 1, first_layer=True)
+            self._weight_mode(1, hidden_layer_sizes[0], first_layer=True)
             .reshape(-1)
             )
         for i, layer in enumerate(hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(self._weight_mode(hidden_layer_sizes[i], layer))
             # (n_hidden,)
-            self.b_.append(self._weight_mode(layer, 1).reshape(-1))
+            self.b_.append(self._weight_mode(1, layer).reshape(-1))
 
         # hypothesis space shape: (n_layers,)
         Hs = []
@@ -127,8 +195,24 @@ class RVFL(ClassifierMixin, BaseEstimator):
                     s = np.nan_to_num(s)
                     return s.reshape(h, d)
                 self._weight_mode = _range
+            case "he_uniform":
+                self._weight_mode = self._he_uniform
+            case "lecun_uniform":
+                self._weight_mode = self._lecun_uniform
+            case "glorot_uniform":
+                self._weight_mode = self._glorot_uniform
+            case "normal":
+                self._weight_mode = self._normal
+            case "he_normal":
+                self._weight_mode = self._he_normal
+            case "lecun_normal":
+                self._weight_mode = self._lecun_normal
+            case "glorot_normal":
+                self._weight_mode = self._glorot_normal
             case _:
-                allowed = {"zeros", "uniform", "range"}
+                allowed = {"zeros", "uniform", "range", "normal", "he_uniform",
+                           "lecun_uniform", "glorot_uniform", "he_normal",
+                           "lecun_normal", "glorot_normal"}
                 raise ValueError(
                     f"weight scheme='{weight_scheme}' is not supported;\
                     choose from {allowed}"
