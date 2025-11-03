@@ -1,7 +1,8 @@
 # rvfl/model.py
 import numpy as np
 from scipy.special import logsumexp
-from sklearn.base import BaseEstimator, ClassifierMixin
+from scipy.stats import mode
+from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.multiclass import unique_labels
@@ -266,3 +267,68 @@ class RVFLClassifier(RVFL):
         out = super().predict(X)
         out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
         return out
+
+
+class EnsembleRVFLClassifier(ClassifierMixin, BaseEstimator):
+
+    def __init__(
+        self,
+        hidden_layer_sizes: np.typing.ArrayLike = (100,),
+        activation: str = "identity",
+        weight_scheme: str = "uniform",
+        seed: int = None,
+        reg_alpha: float = None,
+        voting: str = "soft",                # "soft" or "hard"
+    ):
+        self.hidden_layer_sizes = hidden_layer_sizes
+        self.activation = activation
+        self.weight_scheme = weight_scheme
+        self.seed = seed
+        self.reg_alpha = reg_alpha
+        self.voting = voting
+
+    def fit(self, X, y):
+        X, Y = validate_data(self, X, y)
+
+        h_sizes = np.atleast_1d(self.hidden_layer_sizes)
+
+        # template
+        template = RVFLClassifier(
+            hidden_layer_sizes=(1,),
+            activation=self.activation,
+            weight_scheme=self.weight_scheme,
+            direct_links=True,
+            seed=self.seed,
+            reg_alpha=self.reg_alpha,
+        )
+
+        self.estimators_ = []
+
+        for i, h in enumerate(h_sizes):
+
+            est = clone(template)
+            est.hidden_layer_sizes = (h,)
+
+            est.seed = None if self.seed is None else int(self.seed) + i
+
+            est.fit(X, y)
+            self.estimators_.append(est)
+
+        self.classes_ = self.estimators_[0].classes_
+        return self
+
+    def predict_proba(self, X):
+        check_is_fitted(self, "estimators_")
+        probs = [est.predict_proba(X) for est in self.estimators_]
+        return np.mean(probs, axis=0)
+
+    def predict(self, X):
+        check_is_fitted(self, "estimators_")
+        X = validate_data(self, X, reset=False)
+        if self.voting == "soft":
+            P = self.predict_proba(X)
+            return self.classes_[np.argmax(P, axis=1)]
+
+        votes = np.stack([est.predict(X) for est in self.estimators_], axis=1)
+        m = mode(votes, axis=1, keepdims=False)
+        return m.mode

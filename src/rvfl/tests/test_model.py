@@ -11,7 +11,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.estimator_checks import parametrize_with_checks
 from ucimlrepo import fetch_ucirepo
 
-from rvfl.model import RVFLClassifier
+from rvfl.model import EnsembleRVFLClassifier, RVFLClassifier
 
 activations = ["relu", "tanh", "sigmoid", "identity", "softmax", "softmin",
                "log_sigmoid", "log_softmax"]
@@ -203,7 +203,8 @@ def test_against_shi2021():
     # The actual splits used in the paper were not specified
     skf = StratifiedKFold(n_splits=K, shuffle=True, random_state=42)
 
-    acc = 0
+    rvfl_acc = 0
+    ervfl_acc = 0
     for train_index, test_index in skf.split(X_eval, y_eval):
         X_train = X_eval[train_index]
         y_train = y_eval[train_index]
@@ -212,34 +213,56 @@ def test_against_shi2021():
 
         hidden_layer_sizes = [best_neuron] * best_layer
 
-        model = RVFLClassifier(
+        rvfl = RVFLClassifier(
             hidden_layer_sizes=hidden_layer_sizes,
             activation=best_act,
             weight_scheme="uniform",
             direct_links=True,
             seed=0
             )
-        model.fit(X_train, y_train)
+        rvfl.fit(X_train, y_train)
 
-        y_hat = model.predict(X_test)
+        y_hat = rvfl.predict(X_test)
 
-        acc += accuracy_score(y_test, y_hat)
+        rvfl_acc += accuracy_score(y_test, y_hat)
 
-    acc /= K
+        ervfl = EnsembleRVFLClassifier(
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation=best_act,
+            weight_scheme="uniform",
+            reg_alpha=None,
+            voting="soft",
+            seed=0,
+        )
+
+        ervfl.fit(X_train, y_train)
+
+        y_hat = ervfl.predict(X_test)
+
+        ervfl_acc += accuracy_score(y_test, y_hat)
+
+    rvfl_acc /= K
+    ervfl_acc /= K
 
     # not an exact match because they don't specify their activation
     # nor do they mention the best hyperparameter configuration
     # and they're using ridge
 
     # tightest bound for both rel and abs
-    assert acc == pytest.approx(.6633, rel=2e-2, abs=2e-2)
+    assert rvfl_acc == pytest.approx(.6633, rel=2e-2, abs=2e-2)
+    assert ervfl_acc == pytest.approx(.6581, rel=4e-2, abs=3e-2)
 
 
-def test_invalid_activation_weight():
+@pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
+def test_invalid_activation_weight(Classifier):
     X = np.zeros((30, 4))
     y = np.zeros((30,))
-    invalid_act = RVFLClassifier(100, "bogus_activation", "random_normal", 0, 0)
-    invalid_weight = RVFLClassifier(100, "identity", "bogus_weight", 0, 0)
+    invalid_act = Classifier(hidden_layer_sizes=100,
+                             activation="bogus_activation",
+                             weight_scheme="uniform")
+    invalid_weight = Classifier(hidden_layer_sizes=100,
+                                activation="identity",
+                                weight_scheme="bogus_weight")
     # the sklearn estimator API bans input validation in __init__,
     # so we need to call fit() for error handling to kick in:
     # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
@@ -249,13 +272,17 @@ def test_invalid_activation_weight():
         invalid_weight.fit(X, y)
 
 
-def test_invalid_alpha():
+@pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
+def test_invalid_alpha(Classifier):
     # the sklearn estimator API bans input validation in __init__,
     # so we need to call fit() for error handling to kick in:
     # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
     X = np.zeros((30, 4))
     y = np.zeros((30,))
-    bad_est = RVFLClassifier(100, "identity", "uniform", 0, 0, -10)
+    bad_est = Classifier(hidden_layer_sizes=100,
+                             activation="identity",
+                             weight_scheme="uniform",
+                             reg_alpha=-10)
     with pytest.raises(ValueError, match=r"Negative reg\_alpha"):
         bad_est.fit(X, y)
 
@@ -306,6 +333,6 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
     np.testing.assert_allclose(actual_proba, expected_proba)
 
 
-@parametrize_with_checks([RVFLClassifier()])
+@parametrize_with_checks([RVFLClassifier(), EnsembleRVFLClassifier()])
 def test_sklearn_api_conformance(estimator, check):
     check(estimator)
