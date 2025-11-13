@@ -156,7 +156,6 @@ def test_multilayer_progression(weight_scheme,
     model.fit(X_train, y_train)
     y_score = model.predict_proba(X_test)
     actual_auc = roc_auc_score(y_test, y_score, multi_class="ovo")
-    print(actual_auc)
     assert_allclose(actual_auc, exp_auc)
 
 
