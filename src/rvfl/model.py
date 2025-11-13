@@ -269,8 +269,8 @@ class RVFLClassifier(RVFL):
         return out
 
 
-class EnsembleRVFLClassifier(ClassifierMixin, BaseEstimator):
-
+class EnsembleRVFLClassifier(RVFL):
+    # Now inherits from RVFL, admittedly a lot less satisfying than previous solution but is actually correct
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -278,57 +278,115 @@ class EnsembleRVFLClassifier(ClassifierMixin, BaseEstimator):
         weight_scheme: str = "uniform",
         seed: int = None,
         reg_alpha: float = None,
-        voting: str = "soft",                # "soft" or "hard"
+        voting: str = "soft",    # "soft" or "hard"
     ):
-        self.hidden_layer_sizes = hidden_layer_sizes
-        self.activation = activation
-        self.weight_scheme = weight_scheme
-        self.seed = seed
-        self.reg_alpha = reg_alpha
+        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
+                         activation=activation,
+                         weight_scheme=weight_scheme,
+                         direct_links=True,
+                         seed=seed,
+                         reg_alpha=reg_alpha)
         self.voting = voting
 
     def fit(self, X, y):
         X, Y = validate_data(self, X, y)
+        self._scaler = StandardScaler()
+        X = self._scaler.fit_transform(X)
+        self.classes_ = unique_labels(y)
 
-        h_sizes = np.atleast_1d(self.hidden_layer_sizes)
+        self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+        Y = self.enc_.fit_transform(np.asarray(y).reshape(-1, 1))
 
-        # template
-        template = RVFLClassifier(
-            hidden_layer_sizes=(1,),
-            activation=self.activation,
-            weight_scheme=self.weight_scheme,
-            direct_links=True,
-            seed=self.seed,
-            reg_alpha=self.reg_alpha,
-        )
+        if self.reg_alpha is not None and self.reg_alpha < 0.0:
+            raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
 
-        self.estimators_ = []
+        fn = resolve_activation(self.activation)[1]
+        self._activation_fn = fn
+        self._N = X.shape[1]
+        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
 
-        for i, h in enumerate(h_sizes):
+        self._weights(self.weight_scheme)
 
-            est = clone(template)
-            est.hidden_layer_sizes = (h,)
+        self.W_ = []
+        self.b_ = []
 
-            est.seed = None if self.seed is None else int(self.seed) + i
+        self.W_.append(
+            self._weight_mode(self._N, hidden_layer_sizes[0], first_layer=True)
+            )
+        self.b_.append(
+            self._weight_mode(1, hidden_layer_sizes[0], first_layer=True)
+            .reshape(-1)
+            )
+        
+        for i, layer in enumerate(hidden_layer_sizes[1:]):
+            # (n_hidden, n_features)
+            self.W_.append(self._weight_mode(hidden_layer_sizes[i]+self._N, layer))
+            # (n_hidden,)
+            self.b_.append(self._weight_mode(1, layer).reshape(-1))
 
-            est.fit(X, y)
-            self.estimators_.append(est)
+        self.coeffs_ = []
+        D = X
 
-        self.classes_ = self.estimators_[0].classes_
+        for W, b in zip(self.W_, self.b_, strict=False):
+            Z = D @ W.T + b  # (n_samples, n_hidden)
+            H = self._activation_fn(Z)
+            # design matrix shape: (n_samples, n_hidden_final+n_features)
+            # or (n_samples, n_hidden_final)
+            D = np.hstack((H,X))
+
+            # beta shape: (n_hidden_final+n_features, n_classes-1)
+            # or (n_hidden_final, n_classes-1)
+
+            # If reg_alpha is None, use direct solve using
+            # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
+            if self.reg_alpha is None:
+                coeff = np.linalg.pinv(D) @ Y
+            else:
+                ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
+                ridge.fit(D, Y)
+                coeff = ridge.coef_.T
+            self.coeffs_.append(coeff)
+
         return self
 
     def predict_proba(self, X):
-        check_is_fitted(self, "estimators_")
-        probs = [est.predict_proba(X) for est in self.estimators_]
+        check_is_fitted(self)
+        X = self._scaler.transform(X)
+        probs = []
+
+        D = X
+        for W, b, coeff in zip(self.W_, self.b_, self.coeffs_, strict=False):
+            Z = D @ W.T + b
+            H = self._activation_fn(Z)
+            D = np.hstack((H, X))
+
+            out = D @ coeff
+            out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+            probs.append(out)
+
         return np.mean(probs, axis=0)
 
     def predict(self, X):
-        check_is_fitted(self, "estimators_")
+        check_is_fitted(self)
         X = validate_data(self, X, reset=False)
+
         if self.voting == "soft":
             P = self.predict_proba(X)
             return self.classes_[np.argmax(P, axis=1)]
 
-        votes = np.stack([est.predict(X) for est in self.estimators_], axis=1)
+        # hard
+        X = self._scaler.transform(X)
+        votes = []
+        D = X
+        for W, b, coeff in zip(self.W_, self.b_, self.coeffs_, strict=False):
+            Z = D @ W.T + b
+            H = self._activation_fn(Z)
+            D = np.hstack((H, X))
+
+            out = D @ coeff
+            out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+            votes.append(self.classes_[np.argmax(out, axis=1)])
+
+        votes = np.stack(votes, axis=1)
         m = mode(votes, axis=1, keepdims=False)
         return m.mode

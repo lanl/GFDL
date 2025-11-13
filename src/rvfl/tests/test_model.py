@@ -155,8 +155,8 @@ def test_multilayer_progression(weight_scheme,
     actual_auc = roc_auc_score(y_test, y_score, multi_class="ovo")
     assert_allclose(actual_auc, exp_auc)
 
-
-def test_against_shi2021():
+@pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
+def test_against_shi2021(Classifier):
     # test multilayer classification against
     # the results given in Shi et al. (2021) DOI 10.1016/j.patcog.2021.107978
     # dataset obtained from UCI ML repo
@@ -198,59 +198,51 @@ def test_against_shi2021():
 
     Shi et al. (2021) https://doi.org/10.1016/j.patcog.2021.107978
     """
-    best_layer, best_neuron, best_act = 3, 512, "tanh"
+
+    # values determined using method outlined above
+    hidden_layer_sizes = [512, 512]
+    reg = 0.3
+
+    model = Classifier(
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation="relu",
+        weight_scheme="uniform",
+        reg_alpha=reg,
+        seed=0
+        )
 
     # The actual splits used in the paper were not specified
     skf = StratifiedKFold(n_splits=K, shuffle=True, random_state=42)
 
-    rvfl_acc = 0
-    ervfl_acc = 0
+    acc = 0
     for train_index, test_index in skf.split(X_eval, y_eval):
         X_train = X_eval[train_index]
         y_train = y_eval[train_index]
         X_test = X_eval[test_index]
         y_test = y_eval[test_index]
 
-        hidden_layer_sizes = [best_neuron] * best_layer
+        model.fit(X_train, y_train)
 
-        rvfl = RVFLClassifier(
-            hidden_layer_sizes=hidden_layer_sizes,
-            activation=best_act,
-            weight_scheme="uniform",
-            direct_links=True,
-            seed=0
-            )
-        rvfl.fit(X_train, y_train)
+        y_hat = model.predict(X_test)
 
-        y_hat = rvfl.predict(X_test)
+        acc += accuracy_score(y_test, y_hat)
 
-        rvfl_acc += accuracy_score(y_test, y_hat)
-
-        ervfl = EnsembleRVFLClassifier(
-            hidden_layer_sizes=hidden_layer_sizes,
-            activation=best_act,
-            weight_scheme="uniform",
-            reg_alpha=None,
-            voting="soft",
-            seed=0,
-        )
-
-        ervfl.fit(X_train, y_train)
-
-        y_hat = ervfl.predict(X_test)
-
-        ervfl_acc += accuracy_score(y_test, y_hat)
-
-    rvfl_acc /= K
-    ervfl_acc /= K
+    acc /= K
+    print(acc, Classifier)
 
     # not an exact match because they don't specify their activation
     # nor do they mention the best hyperparameter configuration
     # and they're using ridge
 
     # tightest bound for both rel and abs
-    assert rvfl_acc == pytest.approx(.6633, rel=2e-2, abs=2e-2)
-    assert ervfl_acc == pytest.approx(.6581, rel=4e-2, abs=3e-2)
+    # values in paper:
+    # dRVFL accuracy: 66.33%
+    # edRVFL accuracy: 65.81%
+    match Classifier:
+        case RVFLClassifier():
+            assert acc == pytest.approx(0.6960, rel=1e-4, abs=1e-4)
+        case EnsembleRVFLClassifier():
+            assert acc == pytest.approx(0.7075, rel=1e-4, abs=1e-4)
 
 
 @pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
