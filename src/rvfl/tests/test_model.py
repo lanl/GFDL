@@ -155,6 +155,7 @@ def test_multilayer_progression(weight_scheme,
     actual_auc = roc_auc_score(y_test, y_score, multi_class="ovo")
     assert_allclose(actual_auc, exp_auc)
 
+
 @pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
 def test_against_shi2021(Classifier):
     # test multilayer classification against
@@ -228,7 +229,6 @@ def test_against_shi2021(Classifier):
         acc += accuracy_score(y_test, y_hat)
 
     acc /= K
-    print(acc, Classifier)
 
     # not an exact match because they don't specify their activation
     # nor do they mention the best hyperparameter configuration
@@ -238,11 +238,71 @@ def test_against_shi2021(Classifier):
     # values in paper:
     # dRVFL accuracy: 66.33%
     # edRVFL accuracy: 65.81%
-    match Classifier:
+    match model:
         case RVFLClassifier():
             assert acc == pytest.approx(0.6960, rel=1e-4, abs=1e-4)
         case EnsembleRVFLClassifier():
             assert acc == pytest.approx(0.7075, rel=1e-4, abs=1e-4)
+
+
+def test_soft_and_hard():
+    N, d = 60, 10
+    X, y = make_classification(n_samples=N,
+                               n_features=d,
+                               n_classes=3,
+                               n_informative=8,
+                               random_state=0)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+
+    model = EnsembleRVFLClassifier(
+        hidden_layer_sizes=(5, 5, 5),
+        activation="tanh",
+        weight_scheme="uniform",
+        seed=0,
+        reg_alpha=0.1
+    )
+    model.fit(X_train, y_train)
+
+    y_soft = model.predict(X_test)
+
+    P = model.predict_proba(X_test)
+    y_from_mean = model.classes_[np.argmax(P, axis=1)]
+    np.testing.assert_equal(y_soft, y_from_mean)
+
+    model.voting = "hard"
+    y_hard = model.predict(X_test)
+
+    np.testing.assert_equal(y_soft, y_hard)
+
+
+def test_soft_and_hard_can_differ():
+    N, d = 60, 10
+    X, y = make_classification(n_samples=N,
+                               n_features=d,
+                               n_classes=3,
+                               n_informative=8,
+                               random_state=0)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+
+    # adding more layers (heads) increases the chance of disagreement
+    # between the two voting methods
+    model = EnsembleRVFLClassifier(
+        hidden_layer_sizes=(5, 5, 5, 5, 5),
+        activation="tanh",
+        weight_scheme="uniform",
+        seed=0,
+        reg_alpha=0.1
+    )
+    model.fit(X_train, y_train)
+    y_soft = model.predict(X_test)
+    model.voting = "hard"
+    y_hard = model.predict(X_test)
+
+    assert (y_soft != y_hard).any()
 
 
 @pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])

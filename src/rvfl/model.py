@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.special import logsumexp
 from scipy.stats import mode
-from sklearn.base import BaseEstimator, ClassifierMixin, clone
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.multiclass import unique_labels
@@ -270,7 +270,7 @@ class RVFLClassifier(RVFL):
 
 
 class EnsembleRVFLClassifier(RVFL):
-    # Now inherits from RVFL, admittedly a lot less satisfying than previous solution but is actually correct
+    # Now inherits from RVFL
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -317,10 +317,10 @@ class EnsembleRVFLClassifier(RVFL):
             self._weight_mode(1, hidden_layer_sizes[0], first_layer=True)
             .reshape(-1)
             )
-        
+
         for i, layer in enumerate(hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
-            self.W_.append(self._weight_mode(hidden_layer_sizes[i]+self._N, layer))
+            self.W_.append(self._weight_mode(hidden_layer_sizes[i] + self._N, layer))
             # (n_hidden,)
             self.b_.append(self._weight_mode(1, layer).reshape(-1))
 
@@ -332,7 +332,7 @@ class EnsembleRVFLClassifier(RVFL):
             H = self._activation_fn(Z)
             # design matrix shape: (n_samples, n_hidden_final+n_features)
             # or (n_samples, n_hidden_final)
-            D = np.hstack((H,X))
+            D = np.hstack((H, X))
 
             # beta shape: (n_hidden_final+n_features, n_classes-1)
             # or (n_hidden_final, n_classes-1)
