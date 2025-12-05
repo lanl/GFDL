@@ -351,19 +351,12 @@ class EnsembleRVFL(RVFL):
             Z = D @ W.T + b
             H = self._activation_fn(Z)
 
-            if self.direct_links:
-                D = np.hstack((H, X))
-            else:
-                D = H
+            D = np.hstack((H, X))
 
             out = D @ coeff
             outs.append(out)
 
         return outs
-
-    def predict(self, X):
-        outs = self._forward(X)
-        return np.mean(outs, axis=0)
 
 
 class EnsembleRVFLClassifier(EnsembleRVFL, ClassifierMixin):
