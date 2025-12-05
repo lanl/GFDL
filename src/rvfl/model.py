@@ -248,6 +248,8 @@ class RVFLClassifier(RVFL):
         # (this is necessary for everything beyond binary classification)
         self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
+        # for the below line, should we use fit_transform on the validated Y
+        # assigned in line 242?
         Y = self.enc_.fit_transform(np.asarray(y).reshape(-1, 1))
 
         # call base fit method
@@ -269,7 +271,7 @@ class RVFLClassifier(RVFL):
         return out
 
 
-class EnsembleRVFLClassifier(RVFL):
+class EnsembleRVFL(RVFL):
     # Now inherits from RVFL
     def __init__(
         self,
@@ -277,8 +279,7 @@ class EnsembleRVFLClassifier(RVFL):
         activation: str = "identity",
         weight_scheme: str = "uniform",
         seed: int = None,
-        reg_alpha: float = None,
-        voting: str = "soft",    # "soft" or "hard"
+        reg_alpha: float = None
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                          activation=activation,
@@ -286,16 +287,8 @@ class EnsembleRVFLClassifier(RVFL):
                          direct_links=True,
                          seed=seed,
                          reg_alpha=reg_alpha)
-        self.voting = voting
 
-    def fit(self, X, y):
-        X, Y = validate_data(self, X, y)
-        self._scaler = StandardScaler()
-        X = self._scaler.fit_transform(X)
-        self.classes_ = unique_labels(y)
-
-        self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-        Y = self.enc_.fit_transform(np.asarray(y).reshape(-1, 1))
+    def fit(self, X, Y):
 
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
@@ -328,9 +321,9 @@ class EnsembleRVFLClassifier(RVFL):
         D = X
 
         for W, b in zip(self.W_, self.b_, strict=False):
-            Z = D @ W.T + b  # (n_samples, n_hidden)
+            Z = D @ W.T + b  # (n_samples, n_hidden_layer_i)
             H = self._activation_fn(Z)
-            # design matrix shape: (n_samples, n_hidden_final+n_features)
+            # design matrix shape: (n_samples, n_hidden_layer_i+n_features)
             # or (n_samples, n_hidden_final)
             D = np.hstack((H, X))
 
@@ -349,20 +342,76 @@ class EnsembleRVFLClassifier(RVFL):
 
         return self
 
-    def predict_proba(self, X):
+    def _forward(self, X):
         check_is_fitted(self)
-        X = self._scaler.transform(X)
-        probs = []
+        outs = []
 
         D = X
-        for W, b, coeff in zip(self.W_, self.b_, self.coeffs_, strict=False):
+        for W, b, coeff in zip(self.W_, self.b_, self.coeffs_, strict=True):
             Z = D @ W.T + b
             H = self._activation_fn(Z)
-            D = np.hstack((H, X))
+
+            if self.direct_links:
+                D = np.hstack((H, X))
+            else:
+                D = H
 
             out = D @ coeff
-            out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
-            probs.append(out)
+            outs.append(out)
+
+        return outs
+
+    def predict(self, X):
+        outs = self._forward(X)
+        return np.mean(outs, axis=0)
+
+
+class EnsembleRVFLClassifier(EnsembleRVFL, ClassifierMixin):
+    def __init__(
+        self,
+        hidden_layer_sizes: np.typing.ArrayLike = (100,),
+        activation: str = "identity",
+        weight_scheme: str = "uniform",
+        seed: int = None,
+        reg_alpha: float = None,
+        voting: str = "soft",    # "soft" or "hard"
+    ):
+        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
+                         activation=activation,
+                         weight_scheme=weight_scheme,
+                         seed=seed,
+                         reg_alpha=reg_alpha,
+                         )
+        self.voting = voting
+
+    def fit(self, X, y):
+        # shape: (n_samples, n_features)
+        X, Y = validate_data(self, X, y)
+        self._scaler = StandardScaler()
+        X = self._scaler.fit_transform(X)
+        self.classes_ = unique_labels(y)
+
+        # onehot y
+        # (this is necessary for everything beyond binary classification)
+        self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+        # shape: (n_samples, n_classes-1)
+        Y = self.enc_.fit_transform(np.asarray(y).reshape(-1, 1))
+
+        # call base fit method
+        super().fit(X, Y)
+        return self
+
+    def predict_proba(self, X):
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        X = self._scaler.transform(X)
+
+        outs = self._forward(X)
+        probs = []
+
+        for out in outs:
+            p = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+            probs.append(p)
 
         return np.mean(probs, axis=0)
 
@@ -374,18 +423,13 @@ class EnsembleRVFLClassifier(RVFL):
             P = self.predict_proba(X)
             return self.classes_[np.argmax(P, axis=1)]
 
-        # hard
         X = self._scaler.transform(X)
+        outs = self._forward(X)
         votes = []
-        D = X
-        for W, b, coeff in zip(self.W_, self.b_, self.coeffs_, strict=False):
-            Z = D @ W.T + b
-            H = self._activation_fn(Z)
-            D = np.hstack((H, X))
 
-            out = D @ coeff
-            out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
-            votes.append(self.classes_[np.argmax(out, axis=1)])
+        for out in outs:
+            p = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+            votes.append(self.classes_[np.argmax(p, axis=1)])
 
         votes = np.stack(votes, axis=1)
         m = mode(votes, axis=1, keepdims=False)
