@@ -54,10 +54,11 @@ def test_model(hidden_layer_sizes, n_classes, activation, weight_scheme, direct_
 
     if direct_links:
         assert model.coeff_.shape == (
-            hidden_layer_sizes[-1] + d, len(np.arange(n_classes))
+            sum(hidden_layer_sizes) + d, len(np.arange(n_classes))
             )
     else:
-        assert model.coeff_.shape == (hidden_layer_sizes[-1], len(np.arange(n_classes)))
+        assert model.coeff_.shape == (sum(hidden_layer_sizes),
+                                      len(np.arange(n_classes)))
 
     pred = model.predict(X[:10])
     assert set(np.unique(pred)).issubset(set(np.arange(n_classes)))
@@ -101,16 +102,18 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
 
     # collapsing weights and biases for representation as linear operation
     weights = [w.T for w in model.W_]
-    T = np.eye(weights[-1].shape[1])
-    bias = model.b_[-1].copy()
+    Ts, cs = [], []
+    T = np.eye(X.shape[1])
+    c = np.zeros((X.shape[1],))
 
-    for i in range(len(model.b_) - 2, -1, -1):
-        T = weights[i + 1] @ T
-        bias += model.b_[i] @ T
+    for w, b in zip(weights, model.b_, strict=False):
+        T = T @ w
+        c = c @ w + b
+        Ts.append(T)
+        cs.append(c)
 
-    weights = np.linalg.multi_dot(weights) if len(weights) > 1 else weights[0]
-
-    expected_phi = (X @ weights) + bias
+    # design matrix with ALL layers concatenated
+    expected_phi = np.hstack([X @ T_l + c_l for T_l, c_l in zip(Ts, cs, strict=False)])
 
     expected_beta = np.linalg.pinv(expected_phi) @ Y
 
@@ -123,12 +126,12 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
     # up to a reasonable degree, when the width of the layers is
     # quite small
      ((2,), "relu", "uniform", 0.516163655),
-     ((2, 2), "relu", "uniform", 0.60763808),
+     ((2, 2), "relu", "uniform", 0.5316540646759794),
      # start hitting diminishing returns here:
-     ((2, 2, 2, 2), "relu", "uniform", 0.60891569),
-     ((2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.609660066),
+     ((2, 2, 2, 2), "relu", "uniform", 0.5316540646759794),
+     ((2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.5316540646759794),
      # effectively no improvement here:
-     ((2, 2, 2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.609660066),
+     ((2, 2, 2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.5316540646759794),
      ]
  )
 def test_multilayer_progression(weight_scheme,

@@ -143,12 +143,14 @@ class RVFL(ClassifierMixin, BaseEstimator):
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
 
-        # design matrix shape: (n_samples, n_hidden_final+n_features)
-        # or (n_samples, n_hidden_final)
-        D = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
+        # design matrix shape: (n_samples, sum_hidden+n_features)
+        # or (n_samples, sum_hidden)
+        if self.direct_links:
+            Hs.append(X)
+        D = np.hstack(Hs)
 
-        # beta shape: (n_hidden_final+n_features, n_classes-1)
-        # or (n_hidden_final, n_classes-1)
+        # beta shape: (sum_hidden+n_features, n_classes-1)
+        # or (sum_hidden, n_classes-1)
 
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
@@ -169,8 +171,9 @@ class RVFL(ClassifierMixin, BaseEstimator):
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
 
-        D = np.concatenate((Hs[-1], X), axis=1) if self.direct_links else Hs[-1]
-
+        if self.direct_links:
+            Hs.append(X)
+        D = np.hstack(Hs)
         out = D @ self.coeff_
 
         return out
