@@ -1,7 +1,12 @@
 # rvfl/model.py
 import numpy as np
 from scipy.special import logsumexp
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.base import (
+    BaseEstimator,
+    ClassifierMixin,
+    MultiOutputMixin,
+    RegressorMixin,
+)
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.multiclass import unique_labels
@@ -10,7 +15,7 @@ from sklearn.utils.validation import check_is_fitted, validate_data
 from rvfl.activations import resolve_activation
 
 
-class RVFL(ClassifierMixin, BaseEstimator):
+class RVFL(BaseEstimator):
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -148,11 +153,12 @@ class RVFL(ClassifierMixin, BaseEstimator):
             Hs.append(X)
         D = np.hstack(Hs)
 
-        # beta shape: (sum_hidden+n_features, n_classes-1)
-        # or (sum_hidden, n_classes-1)
+        # beta shape: (n_hidden_final+n_features, n_classes-1)
+        # or (n_hidden_final, n_classes-1)
 
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
+
         if self.reg_alpha is None:
             self.coeff_ = np.linalg.pinv(D) @ Y
         else:
@@ -222,7 +228,7 @@ class RVFL(ClassifierMixin, BaseEstimator):
                 )
 
 
-class RVFLClassifier(RVFL):
+class RVFLClassifier(ClassifierMixin, RVFL):
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -269,3 +275,35 @@ class RVFLClassifier(RVFL):
         out = super().predict(X)
         out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
         return out
+
+
+class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
+    def __init__(
+        self,
+        hidden_layer_sizes: np.typing.ArrayLike = (100,),
+        activation: str = "identity",
+        weight_scheme: str = "uniform",
+        direct_links: bool = True,
+        seed: int = None,
+        reg_alpha: float = None
+    ):
+        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
+                       activation=activation,
+                       weight_scheme=weight_scheme,
+                       direct_links=direct_links,
+                       seed=seed,
+                       reg_alpha=reg_alpha)
+
+    def fit(self, X, y):
+        X, Y = validate_data(self, X, y, multi_output=True)
+        self._scaler = StandardScaler().fit(X)
+        XScaled = self._scaler.transform(X)
+        super().fit(XScaled, y)
+        return self
+
+    def predict(self, X):
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        # Scale test data
+        XScaled = self._scaler.transform(X)
+        return super().predict(XScaled)
