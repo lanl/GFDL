@@ -2,7 +2,8 @@
 import numpy as np
 import pytest
 from graforvfl import RvflRegressor
-from sklearn.datasets import make_regression
+from sklearn.datasets import fetch_openml, make_regression
+from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils.estimator_checks import parametrize_with_checks
@@ -74,11 +75,7 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
     preds = {}
 
     for name, model in models.items():
-        if name == "RVFL":  # RVFL scales data internally
-            # print(name)
-            Xtr, Xte = (X_train, X_test)
-        else:
-            Xtr, Xte = (X_train_s, X_test_s)
+        Xtr, Xte = (X_train_s, X_test_s)
         model.fit(Xtr, y_train)
         yhat = model.predict(Xte)
         preds[name] = yhat
@@ -88,9 +85,34 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
     cur_results = preds["RVFL"]
 
     # Test results
-    np.testing.assert_allclose(grf_results, cur_results, atol=1e-07)
+    np.testing.assert_allclose(cur_results, grf_results, atol=1e-07)
 
 
 @parametrize_with_checks([RVFLRegressor()])
 def test_sklearn_api_conformance(estimator, check):
     check(estimator)
+
+
+def test_regression_boston():
+    # real-world data test with multi-layer RVFL
+    boston = fetch_openml(name="boston", version=1, as_frame=False)
+    X, y = boston.data, boston.target.astype(float)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=42,
+                                                        shuffle=True)
+    model = RVFLRegressor(
+            hidden_layer_sizes=[800] * 10,
+            activation="tanh",
+            weight_scheme="uniform",
+            direct_links=1,
+            seed=0,
+            reg_alpha=0.1,
+        )
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    # RandomForestRegressor() with default params scores
+    # 0.8733907 here; multi-layer RVFL with above params is a bit
+    # worse, but certainly better than random chance:
+    actual = r2_score(y_test, y_pred)
+    print("RVFL score ", actual)
+    np.testing.assert_allclose(actual, 0.78550376)
