@@ -1,17 +1,12 @@
-# tests/test_model.py
-
 
 import numpy as np
 import pytest
-
-# Graforvfl
 from graforvfl import RvflRegressor
 from sklearn.datasets import make_regression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
-# RVFL
 from rvfl.model import RVFLRegressor
 
 activations = ["relu", "tanh", "sigmoid", "identity", "softmax", "softmin",
@@ -75,7 +70,7 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
         )
     }
 
-    # 3) Fit + predict
+    # Fit + predict
     preds = {}
 
     for name, model in models.items():

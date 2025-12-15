@@ -8,7 +8,6 @@ from sklearn.base import (
     RegressorMixin,
 )
 from sklearn.linear_model import Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
@@ -166,7 +165,6 @@ class RVFL(BaseEstimator):
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
             ridge.fit(D, Y)
             self.coeff_ = ridge.coef_.T
-
         return self
 
     def predict(self, X):
@@ -298,13 +296,9 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
 
     def fit(self, X, y):
         X, Y = validate_data(self, X, y, multi_output=True)
-
         self._scaler = StandardScaler().fit(X)
         XScaled = self._scaler.transform(X)
-
-        # Fit
         super().fit(XScaled, y)
-
         return self
 
     def predict(self, X):
@@ -313,10 +307,3 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
         # Scale test data
         XScaled = self._scaler.transform(X)
         return super().predict(XScaled)
-
-    def metrics(self, y_true, y_pred):
-        return {
-            "R2":  r2_score(y_true, y_pred),
-            "MSE": mean_squared_error(y_true, y_pred),
-            "MAE": mean_absolute_error(y_true, y_pred),
-        }
