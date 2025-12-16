@@ -159,8 +159,11 @@ def test_multilayer_progression(weight_scheme,
     assert_allclose(actual_auc, exp_auc)
 
 
-@pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
-def test_against_shi2021(Classifier):
+@pytest.mark.parametrize(
+        "Classifier, target",
+        [(RVFLClassifier, 0.7161), (EnsembleRVFLClassifier, 0.7132)]
+        )
+def test_against_shi2021(Classifier, target):
     # test multilayer classification against
     # the results given in Shi et al. (2021) DOI 10.1016/j.patcog.2021.107978
     # dataset obtained from UCI ML repo
@@ -205,7 +208,7 @@ def test_against_shi2021(Classifier):
 
     # values determined using method outlined above
     hidden_layer_sizes = [512, 512]
-    reg = 0.3
+    reg = 16
 
     model = Classifier(
         hidden_layer_sizes=hidden_layer_sizes,
@@ -241,11 +244,7 @@ def test_against_shi2021(Classifier):
     # values in paper:
     # dRVFL accuracy: 66.33%
     # edRVFL accuracy: 65.81%
-    match model:
-        case RVFLClassifier():
-            assert acc == pytest.approx(0.6960, rel=1e-4, abs=1e-4)
-        case EnsembleRVFLClassifier():
-            assert acc == pytest.approx(0.7075, rel=1e-4, abs=1e-4)
+    assert acc == pytest.approx(target, rel=1e-4, abs=0)
 
 
 def test_soft_and_hard():
@@ -304,8 +303,11 @@ def test_soft_and_hard_can_differ():
     y_soft = model.predict(X_test)
     model.voting = "hard"
     y_hard = model.predict(X_test)
+    difference = [
+        True, True, True, True, True, True, True, True, False, True, True, True
+        ]
 
-    assert (y_soft != y_hard).any()
+    assert np.array_equal(y_soft == y_hard, difference)
 
 
 @pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])

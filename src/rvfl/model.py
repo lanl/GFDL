@@ -251,9 +251,7 @@ class RVFLClassifier(RVFL):
         # (this is necessary for everything beyond binary classification)
         self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
-        # for the below line, should we use fit_transform on the validated Y
-        # assigned in line 242?
-        Y = self.enc_.fit_transform(np.asarray(y).reshape(-1, 1))
+        Y = self.enc_.fit_transform(Y.reshape(-1, 1))
 
         # call base fit method
         super().fit(X, Y)
@@ -275,7 +273,6 @@ class RVFLClassifier(RVFL):
 
 
 class EnsembleRVFL(RVFL):
-    # Now inherits from RVFL
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -385,7 +382,7 @@ class EnsembleRVFLClassifier(EnsembleRVFL, ClassifierMixin):
         X, Y = validate_data(self, X, y)
         self._scaler = StandardScaler()
         X = self._scaler.fit_transform(X)
-        self.classes_ = unique_labels(y)
+        self.classes_ = unique_labels(Y)
 
         # onehot y
         # (this is necessary for everything beyond binary classification)
