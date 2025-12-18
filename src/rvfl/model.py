@@ -1,6 +1,7 @@
 # rvfl/model.py
 import numpy as np
 from scipy.special import logsumexp
+from scipy.stats import mode
 from sklearn.base import (
     BaseEstimator,
     ClassifierMixin,
@@ -153,12 +154,11 @@ class RVFL(BaseEstimator):
             Hs.append(X)
         D = np.hstack(Hs)
 
-        # beta shape: (n_hidden_final+n_features, n_classes-1)
-        # or (n_hidden_final, n_classes-1)
+        # beta shape: (sum_hidden+n_features, n_classes-1)
+        # or (sum_hidden, n_classes-1)
 
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
-
         if self.reg_alpha is None:
             self.coeff_ = np.linalg.pinv(D) @ Y
         else:
@@ -250,13 +250,13 @@ class RVFLClassifier(ClassifierMixin, RVFL):
         X, Y = validate_data(self, X, y)
         self._scaler = StandardScaler()
         X = self._scaler.fit_transform(X)
-        self.classes_ = unique_labels(y)
+        self.classes_ = unique_labels(Y)
 
         # onehot y
         # (this is necessary for everything beyond binary classification)
         self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
-        Y = self.enc_.fit_transform(np.asarray(y).reshape(-1, 1))
+        Y = self.enc_.fit_transform(Y.reshape(-1, 1))
 
         # call base fit method
         super().fit(X, Y)
@@ -275,6 +275,168 @@ class RVFLClassifier(ClassifierMixin, RVFL):
         out = super().predict(X)
         out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
         return out
+
+
+class EnsembleRVFL(RVFL):
+    def __init__(
+        self,
+        hidden_layer_sizes: np.typing.ArrayLike = (100,),
+        activation: str = "identity",
+        weight_scheme: str = "uniform",
+        seed: int = None,
+        reg_alpha: float = None
+    ):
+        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
+                         activation=activation,
+                         weight_scheme=weight_scheme,
+                         direct_links=True,
+                         seed=seed,
+                         reg_alpha=reg_alpha)
+
+    def fit(self, X, Y):
+
+        if self.reg_alpha is not None and self.reg_alpha < 0.0:
+            raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
+
+        fn = resolve_activation(self.activation)[1]
+        self._activation_fn = fn
+        self._N = X.shape[1]
+        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+
+        self._weights(self.weight_scheme)
+
+        self.W_ = []
+        self.b_ = []
+
+        self.W_.append(
+            self._weight_mode(self._N, hidden_layer_sizes[0], first_layer=True)
+            )
+        self.b_.append(
+            self._weight_mode(1, hidden_layer_sizes[0], first_layer=True)
+            .reshape(-1)
+            )
+
+        for i, layer in enumerate(hidden_layer_sizes[1:]):
+            # (n_hidden, n_features)
+            self.W_.append(self._weight_mode(hidden_layer_sizes[i] + self._N, layer))
+            # (n_hidden,)
+            self.b_.append(self._weight_mode(1, layer).reshape(-1))
+
+        self.coeffs_ = []
+        D = X
+
+        for W, b in zip(self.W_, self.b_, strict=False):
+            Z = D @ W.T + b  # (n_samples, n_hidden_layer_i)
+            H = self._activation_fn(Z)
+            # design matrix shape: (n_samples, n_hidden_layer_i+n_features)
+            # or (n_samples, n_hidden_final)
+            D = np.hstack((H, X))
+
+            # beta shape: (n_hidden_final+n_features, n_classes-1)
+            # or (n_hidden_final, n_classes-1)
+
+            # If reg_alpha is None, use direct solve using
+            # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
+            if self.reg_alpha is None:
+                coeff = np.linalg.pinv(D) @ Y
+            else:
+                ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
+                ridge.fit(D, Y)
+                coeff = ridge.coef_.T
+            self.coeffs_.append(coeff)
+
+        return self
+
+    def _forward(self, X):
+        check_is_fitted(self)
+        outs = []
+
+        D = X
+        for W, b, coeff in zip(self.W_, self.b_, self.coeffs_, strict=True):
+            Z = D @ W.T + b
+            H = self._activation_fn(Z)
+
+            D = np.hstack((H, X))
+
+            out = D @ coeff
+            outs.append(out)
+
+        return outs
+
+
+class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
+    def __init__(
+        self,
+        hidden_layer_sizes: np.typing.ArrayLike = (100,),
+        activation: str = "identity",
+        weight_scheme: str = "uniform",
+        seed: int = None,
+        reg_alpha: float = None,
+        voting: str = "soft",    # "soft" or "hard"
+    ):
+        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
+                         activation=activation,
+                         weight_scheme=weight_scheme,
+                         seed=seed,
+                         reg_alpha=reg_alpha,
+                         )
+        self.voting = voting
+
+    def fit(self, X, y):
+        # shape: (n_samples, n_features)
+        X, Y = validate_data(self, X, y)
+        self._scaler = StandardScaler()
+        X = self._scaler.fit_transform(X)
+        self.classes_ = unique_labels(Y)
+
+        # onehot y
+        # (this is necessary for everything beyond binary classification)
+        self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+        # shape: (n_samples, n_classes-1)
+        Y = self.enc_.fit_transform(Y.reshape(-1, 1))
+
+        # call base fit method
+        super().fit(X, Y)
+        return self
+
+    def predict_proba(self, X):
+        if self.voting == "hard":
+            raise AttributeError(
+                "`predict_proba` is not available when voting='hard'."
+                "Use voting='soft' to enable probability predictions."
+                )
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        X = self._scaler.transform(X)
+
+        outs = self._forward(X)
+        probs = []
+
+        for out in outs:
+            p = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+            probs.append(p)
+
+        return np.mean(probs, axis=0)
+
+    def predict(self, X):
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+
+        if self.voting == "soft":
+            P = self.predict_proba(X)
+            return self.classes_[np.argmax(P, axis=1)]
+
+        X = self._scaler.transform(X)
+        outs = self._forward(X)
+        votes = []
+
+        for out in outs:
+            p = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+            votes.append(self.classes_[np.argmax(p, axis=1)])
+
+        votes = np.stack(votes, axis=1)
+        m = mode(votes, axis=1, keepdims=False)
+        return m.mode
 
 
 class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
@@ -298,7 +460,7 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
         X, Y = validate_data(self, X, y, multi_output=True)
         self._scaler = StandardScaler().fit(X)
         XScaled = self._scaler.transform(X)
-        super().fit(XScaled, y)
+        super().fit(XScaled, Y)
         return self
 
     def predict(self, X):

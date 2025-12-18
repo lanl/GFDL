@@ -11,7 +11,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.estimator_checks import parametrize_with_checks
 from ucimlrepo import fetch_ucirepo
 
-from rvfl.model import RVFLClassifier
+from rvfl.model import EnsembleRVFLClassifier, RVFLClassifier
 
 activations = ["relu", "tanh", "sigmoid", "identity", "softmax", "softmin",
                "log_sigmoid", "log_softmax"]
@@ -159,7 +159,11 @@ def test_multilayer_progression(weight_scheme,
     assert_allclose(actual_auc, exp_auc)
 
 
-def test_against_shi2021():
+@pytest.mark.parametrize(
+        "Classifier, target",
+        [(RVFLClassifier, 0.7161), (EnsembleRVFLClassifier, 0.7132)]
+        )
+def test_against_shi2021(Classifier, target):
     # test multilayer classification against
     # the results given in Shi et al. (2021) DOI 10.1016/j.patcog.2021.107978
     # dataset obtained from UCI ML repo
@@ -202,10 +206,11 @@ def test_against_shi2021():
     Shi et al. (2021) https://doi.org/10.1016/j.patcog.2021.107978
     """
 
+    # values determined using method outlined above
     hidden_layer_sizes = [512, 512]
     reg = 16
 
-    model = RVFLClassifier(
+    model = Classifier(
         hidden_layer_sizes=hidden_layer_sizes,
         activation="relu",
         weight_scheme="uniform",
@@ -236,21 +241,90 @@ def test_against_shi2021():
     # and they're using ridge
 
     # tightest bound for both rel and abs
-    # we're now exceeding the performance in the paper...
-    # this is probably due to the change in hyperparameters
-
-    # Note that the manuscript reports an expected accuracy
-    # of 0.6633 for dRVFL, but we are checking against our
-    # current best result to guard against change/regression
-    # more stringently
-    assert acc == pytest.approx(0.7161344439316353, rel=1e-7, abs=0)
+    # values in paper:
+    # dRVFL accuracy: 66.33%
+    # edRVFL accuracy: 65.81%
+    assert acc == pytest.approx(target, rel=1e-4, abs=0)
 
 
-def test_invalid_activation_weight():
+def test_soft_and_hard():
+    N, d = 60, 10
+    X, y = make_classification(n_samples=N,
+                               n_features=d,
+                               n_classes=3,
+                               n_informative=8,
+                               random_state=0)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+
+    model = EnsembleRVFLClassifier(
+        hidden_layer_sizes=(5, 5, 5),
+        activation="tanh",
+        weight_scheme="uniform",
+        seed=0,
+        reg_alpha=0.1
+    )
+    model.fit(X_train, y_train)
+
+    y_soft = model.predict(X_test)
+
+    P = model.predict_proba(X_test)
+    y_from_mean = model.classes_[np.argmax(P, axis=1)]
+    np.testing.assert_equal(y_soft, y_from_mean)
+
+    model.voting = "hard"
+
+    with pytest.raises(AttributeError, match="predict_proba"):
+        model.predict_proba(X_test)
+
+    y_hard = model.predict(X_test)
+
+    np.testing.assert_equal(y_soft, y_hard)
+
+
+@pytest.mark.parametrize("alpha", [None, 0.1])
+def test_soft_and_hard_can_differ(alpha):
+    N, d = 60, 10
+    X, y = make_classification(n_samples=N,
+                               n_features=d,
+                               n_classes=3,
+                               n_informative=8,
+                               random_state=0)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+
+    # adding more layers (heads) increases the chance of disagreement
+    # between the two voting methods
+    model = EnsembleRVFLClassifier(
+        hidden_layer_sizes=(5, 5, 5, 5, 5),
+        activation="tanh",
+        weight_scheme="uniform",
+        seed=0,
+        reg_alpha=alpha
+    )
+    model.fit(X_train, y_train)
+    y_soft = model.predict(X_test)
+    model.voting = "hard"
+    y_hard = model.predict(X_test)
+    difference = [
+        True, True, True, True, True, True, True, True, False, True, True, True
+        ]
+
+    np.testing.assert_array_equal(y_soft == y_hard, difference)
+
+
+@pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
+def test_invalid_activation_weight(Classifier):
     X = np.zeros((30, 4))
     y = np.zeros((30,))
-    invalid_act = RVFLClassifier(100, "bogus_activation", "random_normal", 0, 0)
-    invalid_weight = RVFLClassifier(100, "identity", "bogus_weight", 0, 0)
+    invalid_act = Classifier(hidden_layer_sizes=100,
+                             activation="bogus_activation",
+                             weight_scheme="uniform")
+    invalid_weight = Classifier(hidden_layer_sizes=100,
+                                activation="identity",
+                                weight_scheme="bogus_weight")
     # the sklearn estimator API bans input validation in __init__,
     # so we need to call fit() for error handling to kick in:
     # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
@@ -260,13 +334,17 @@ def test_invalid_activation_weight():
         invalid_weight.fit(X, y)
 
 
-def test_invalid_alpha():
+@pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
+def test_invalid_alpha(Classifier):
     # the sklearn estimator API bans input validation in __init__,
     # so we need to call fit() for error handling to kick in:
     # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
     X = np.zeros((30, 4))
     y = np.zeros((30,))
-    bad_est = RVFLClassifier(100, "identity", "uniform", 0, 0, -10)
+    bad_est = Classifier(hidden_layer_sizes=100,
+                             activation="identity",
+                             weight_scheme="uniform",
+                             reg_alpha=-10)
     with pytest.raises(ValueError, match=r"Negative reg\_alpha"):
         bad_est.fit(X, y)
 
@@ -317,6 +395,6 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
     np.testing.assert_allclose(actual_proba, expected_proba)
 
 
-@parametrize_with_checks([RVFLClassifier()])
+@parametrize_with_checks([RVFLClassifier(), EnsembleRVFLClassifier()])
 def test_sklearn_api_conformance(estimator, check):
     check(estimator)
