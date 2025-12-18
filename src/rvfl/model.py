@@ -250,7 +250,7 @@ class RVFLClassifier(ClassifierMixin, RVFL):
         X, Y = validate_data(self, X, y)
         self._scaler = StandardScaler()
         X = self._scaler.fit_transform(X)
-        self.classes_ = unique_labels(y)
+        self.classes_ = unique_labels(Y)
 
         # onehot y
         # (this is necessary for everything beyond binary classification)
@@ -393,13 +393,18 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
         # (this is necessary for everything beyond binary classification)
         self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
-        Y = self.enc_.fit_transform(np.asarray(y).reshape(-1, 1))
+        Y = self.enc_.fit_transform(Y.reshape(-1, 1))
 
         # call base fit method
         super().fit(X, Y)
         return self
 
     def predict_proba(self, X):
+        if self.voting == "hard":
+            raise AttributeError(
+                "`predict_proba` is not available when voting='hard'."
+                "Use voting='soft' to enable probability predictions."
+                )
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         X = self._scaler.transform(X)
@@ -455,7 +460,7 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
         X, Y = validate_data(self, X, y, multi_output=True)
         self._scaler = StandardScaler().fit(X)
         XScaled = self._scaler.transform(X)
-        super().fit(XScaled, y)
+        super().fit(XScaled, Y)
         return self
 
     def predict(self, X):

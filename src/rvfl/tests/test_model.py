@@ -274,12 +274,17 @@ def test_soft_and_hard():
     np.testing.assert_equal(y_soft, y_from_mean)
 
     model.voting = "hard"
+
+    with pytest.raises(AttributeError, match="predict_proba"):
+        model.predict_proba(X_test)
+
     y_hard = model.predict(X_test)
 
     np.testing.assert_equal(y_soft, y_hard)
 
 
-def test_soft_and_hard_can_differ():
+@pytest.mark.parametrize("alpha", [None, 0.1])
+def test_soft_and_hard_can_differ(alpha):
     N, d = 60, 10
     X, y = make_classification(n_samples=N,
                                n_features=d,
@@ -297,7 +302,7 @@ def test_soft_and_hard_can_differ():
         activation="tanh",
         weight_scheme="uniform",
         seed=0,
-        reg_alpha=0.1
+        reg_alpha=alpha
     )
     model.fit(X_train, y_train)
     y_soft = model.predict(X_test)
@@ -307,7 +312,7 @@ def test_soft_and_hard_can_differ():
         True, True, True, True, True, True, True, True, False, True, True, True
         ]
 
-    assert np.array_equal(y_soft == y_hard, difference)
+    np.testing.assert_array_equal(y_soft == y_hard, difference)
 
 
 @pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
