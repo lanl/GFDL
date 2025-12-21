@@ -10,6 +10,7 @@ from sklearn.base import (
 )
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
 
@@ -395,12 +396,15 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
         super().fit(X, Y)
         return self
 
-    def predict_proba(self, X):
+    def _check_voting(self):
         if self.voting == "hard":
             raise AttributeError(
-                "`predict_proba` is not available when voting='hard'."
-                "Use voting='soft' to enable probability predictions."
-                )
+                f"predict_proba is not available when voting={self.voting!r}"
+            )
+        return True
+
+    @available_if(_check_voting)
+    def predict_proba(self, X):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
 
