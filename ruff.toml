@@ -23,4 +23,5 @@ extend-select = [
     "PGH",  # pygrep-hooks
     "PLE",  # pylint/error
     "UP",   # pyupgrade
+    "T20",  # leftover prints...
 ]

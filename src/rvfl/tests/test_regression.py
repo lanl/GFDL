@@ -114,5 +114,4 @@ def test_regression_boston():
     # 0.8733907 here; multi-layer RVFL with above params is a bit
     # worse, but certainly better than random chance:
     actual = r2_score(y_test, y_pred)
-    print("RVFL score ", actual)
     np.testing.assert_allclose(actual, 0.78550376)
