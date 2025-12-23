@@ -29,6 +29,9 @@ jobs:
     - name: lint
       run: |
         ruff check
+    - name: lint docs
+      run: |
+        numpydoc lint src/rvfl/model.py
     - name: test
       run: |
         cd /tmp

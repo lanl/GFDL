@@ -350,11 +350,42 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
                        reg_alpha=reg_alpha)
 
     def fit(self, X, y):
+        """
+        Train the gradient-free neural network on the training set (X, y).
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The target values.
+
+        Returns
+        -------
+        object
+          The fitted estimator.
+        """
         X, Y = validate_data(self, X, y, multi_output=True)
         super().fit(X, Y)
         return self
 
     def predict(self, X):
+        """
+        Predict regression target for X.
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The input samples.
+
+        Returns
+        -------
+        ndarray
+          The predicted values. Should have shape (n_samples,) or
+          (n_samples, n_outputs).
+        """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         return super().predict(X)
