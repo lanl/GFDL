@@ -136,6 +136,22 @@ class RVFLClassifier(ClassifierMixin, RVFL):
                        reg_alpha=reg_alpha)
 
     def fit(self, X, y):
+        """
+        Build a gradient-free neural network from the training set (X, y).
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The target values (class labels).
+
+        Returns
+        -------
+        object
+          Fitted estimator.
+        """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
         self.classes_ = unique_labels(Y)
