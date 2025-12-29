@@ -214,6 +214,19 @@ class RVFLClassifier(ClassifierMixin, RVFL):
         return self
 
     def predict(self, X):
+        """
+        Predict class for X.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+          The input samples.
+
+        Returns
+        -------
+        ndarray
+          The predicted classes, with shape (n_samples,) or (n_samples, n_outputs).
+        """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         out = self.predict_proba(X)
