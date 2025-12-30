@@ -409,6 +409,22 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
         self.voting = voting
 
     def fit(self, X, y):
+        """
+        Train the ensemble of connected RVFL networks on the training set (X, y).
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The target values.
+
+        Returns
+        -------
+        object
+          The fitted estimator.
+        """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
         self.classes_ = unique_labels(Y)
