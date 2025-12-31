@@ -234,6 +234,21 @@ class RVFLClassifier(ClassifierMixin, RVFL):
         return y_hat
 
     def predict_proba(self, X):
+        """
+        Predict class probabilities for X.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+          The input samples.
+
+        Returns
+        -------
+        ndarray
+          The class probabilities of the input samples. The order of the classes
+          corresponds to that in the attribute ``classes_``. The ndarray should
+          have shape (n_samples, n_classes).
+        """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         out = super().predict(X)
