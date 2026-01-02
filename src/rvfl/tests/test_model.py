@@ -274,13 +274,30 @@ def test_soft_and_hard():
     np.testing.assert_equal(y_soft, y_from_mean)
 
     model.voting = "hard"
-
-    with pytest.raises(AttributeError, match="predict_proba"):
-        model.predict_proba(X_test)
-
     y_hard = model.predict(X_test)
 
     np.testing.assert_equal(y_soft, y_hard)
+
+
+def test_hard_vote_proba_error():
+    X, y = make_classification(n_samples=60,
+                               n_features=10,
+                               n_classes=3,
+                               n_informative=8,
+                               random_state=0)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+    model = EnsembleRVFLClassifier(
+        hidden_layer_sizes=(5, 5, 5),
+        activation="tanh",
+        weight_scheme="uniform",
+        seed=0,
+        reg_alpha=0.1,
+        voting="hard",
+    )
+    model.fit(X_train, y_train)
+    with pytest.raises(AttributeError, match="predict_proba"):
+        model.predict_proba(X_test)
 
 
 @pytest.mark.parametrize("alpha", [None, 0.1])
