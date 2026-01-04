@@ -26,11 +26,10 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
                                   activation, weight_scheme, reg_alpha):
     N, d = n_samples, n_targets
     RNG = 42
-    X, y, true_coef = make_regression(n_samples=N,
+    X, y = make_regression(n_samples=N,
                            n_features=d,
                            n_informative=d,
                            n_targets=n_targets,
-                           coef=True,
                            noise=0.0,
                            bias=0.0,
                            random_state=RNG)
