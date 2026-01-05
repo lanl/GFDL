@@ -214,7 +214,7 @@ def test_against_shi2021(Classifier, target):
         reg_alpha=reg,
         seed=0
         )
-    
+
     scl = StandardScaler()
 
     # The actual splits used in the paper were not specified
@@ -297,7 +297,7 @@ def test_soft_and_hard_can_differ(alpha):
     # adding more layers (heads) increases the chance of disagreement
     # between the two voting methods
     model = EnsembleRVFLClassifier(
-        hidden_layer_sizes=(3,3,3,3),
+        hidden_layer_sizes=(3, 3, 3, 3),
         activation="tanh",
         weight_scheme="uniform",
         seed=0,
