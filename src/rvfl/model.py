@@ -9,7 +9,7 @@ from sklearn.base import (
     RegressorMixin,
 )
 from sklearn.linear_model import Ridge
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
 
@@ -248,8 +248,6 @@ class RVFLClassifier(ClassifierMixin, RVFL):
     def fit(self, X, y):
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
-        self._scaler = StandardScaler()
-        X = self._scaler.fit_transform(X)
         self.classes_ = unique_labels(Y)
 
         # onehot y
@@ -271,7 +269,7 @@ class RVFLClassifier(ClassifierMixin, RVFL):
 
     def predict_proba(self, X):
         check_is_fitted(self)
-        X = self._scaler.transform(X)
+        X = validate_data(self, X, reset=False)
         out = super().predict(X)
         out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
         return out
@@ -385,8 +383,6 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
     def fit(self, X, y):
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
-        self._scaler = StandardScaler()
-        X = self._scaler.fit_transform(X)
         self.classes_ = unique_labels(Y)
 
         # onehot y
@@ -407,7 +403,6 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
                 )
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
-        X = self._scaler.transform(X)
 
         outs = self._forward(X)
         probs = []
@@ -426,7 +421,6 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
             P = self.predict_proba(X)
             return self.classes_[np.argmax(P, axis=1)]
 
-        X = self._scaler.transform(X)
         outs = self._forward(X)
         votes = []
 
@@ -458,14 +452,10 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
 
     def fit(self, X, y):
         X, Y = validate_data(self, X, y, multi_output=True)
-        self._scaler = StandardScaler().fit(X)
-        XScaled = self._scaler.transform(X)
-        super().fit(XScaled, Y)
+        super().fit(X, Y)
         return self
 
     def predict(self, X):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
-        # Scale test data
-        XScaled = self._scaler.transform(X)
-        return super().predict(XScaled)
+        return super().predict(X)
