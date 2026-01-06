@@ -100,6 +100,11 @@ def test_regression_boston():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
                                                         random_state=42,
                                                         shuffle=True)
+
+    scaler = StandardScaler().fit(X_train)
+    X_train_s = scaler.transform(X_train)
+    X_test_s = scaler.transform(X_test)
+
     model = RVFLRegressor(
             hidden_layer_sizes=[800] * 10,
             activation="tanh",
@@ -108,8 +113,8 @@ def test_regression_boston():
             seed=0,
             reg_alpha=0.1,
         )
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
+    model.fit(X_train_s, y_train)
+    y_pred = model.predict(X_test_s)
     # RandomForestRegressor() with default params scores
     # 0.8733907 here; multi-layer RVFL with above params is a bit
     # worse, but certainly better than random chance:

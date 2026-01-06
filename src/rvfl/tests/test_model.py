@@ -94,9 +94,6 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
 
     model.fit(X, y)
 
-    scl = StandardScaler()
-    X = scl.fit_transform(X)
-
     enc = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
     Y = enc.fit_transform(y.reshape(-1, 1))
 
@@ -125,13 +122,13 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
     # ROC AUC to increase with multi-layer network complexity
     # up to a reasonable degree, when the width of the layers is
     # quite small
-     ((2,), "relu", "uniform", 0.516163655),
-     ((2, 2), "relu", "uniform", 0.5316540646759794),
+     ((2,), "relu", "uniform", 0.5598328634285958),
+     ((2, 2), "relu", "uniform", 0.5666639967533855),
      # start hitting diminishing returns here:
-     ((2, 2, 2, 2), "relu", "uniform", 0.5316540646759794),
-     ((2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.5316540646759794),
+     ((2, 2, 2, 2), "relu", "uniform", 0.5666639967533855),
+     ((2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.5666639967533855),
      # effectively no improvement here:
-     ((2, 2, 2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.5316540646759794),
+     ((2, 2, 2, 2, 2, 2, 2, 2, 2), "relu", "uniform", 0.5666639967533855),
      ]
  )
 def test_multilayer_progression(weight_scheme,
@@ -218,6 +215,8 @@ def test_against_shi2021(Classifier, target):
         seed=0
         )
 
+    scl = StandardScaler()
+
     # The actual splits used in the paper were not specified
     skf = StratifiedKFold(n_splits=K, shuffle=True, random_state=42)
 
@@ -228,9 +227,9 @@ def test_against_shi2021(Classifier, target):
         X_test = X_eval[test_index]
         y_test = y_eval[test_index]
 
-        model.fit(X_train, y_train)
+        model.fit(scl.fit_transform(X_train), y_train)
 
-        y_hat = model.predict(X_test)
+        y_hat = model.predict(scl.transform(X_test))
 
         acc += accuracy_score(y_test, y_hat)
 
@@ -315,7 +314,7 @@ def test_soft_and_hard_can_differ(alpha):
     # adding more layers (heads) increases the chance of disagreement
     # between the two voting methods
     model = EnsembleRVFLClassifier(
-        hidden_layer_sizes=(5, 5, 5, 5, 5),
+        hidden_layer_sizes=(3, 3, 3, 3),
         activation="tanh",
         weight_scheme="uniform",
         seed=0,
@@ -326,7 +325,7 @@ def test_soft_and_hard_can_differ(alpha):
     model.voting = "hard"
     y_hard = model.predict(X_test)
     difference = [
-        True, True, True, True, True, True, True, True, False, True, True, True
+        True, True, True, True, True, True, True, True, True, True, False, True
         ]
 
     np.testing.assert_array_equal(y_soft == y_hard, difference)
@@ -388,8 +387,6 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
                  reg_alpha=alpha)
     model.fit(X_train, y_train)
 
-    scl = StandardScaler()
-
     grafo_act = "none" if activation == "identity" else activation
     if weight_scheme == "uniform":
         grafo_wts = "random_uniform"
@@ -404,10 +401,10 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
                                           reg_alpha=alpha,
                                           seed=0)
 
-    grafo_rvfl.fit(scl.fit_transform(X_train), y_train)
+    grafo_rvfl.fit(X_train, y_train)
 
     actual_proba = model.predict_proba(X_test)
-    expected_proba = grafo_rvfl.predict_proba(scl.transform(X_test))
+    expected_proba = grafo_rvfl.predict_proba(X_test)
 
     np.testing.assert_allclose(actual_proba, expected_proba)
 
