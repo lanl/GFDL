@@ -76,7 +76,7 @@ for _, (train_index, test_index) in enumerate(skf.split(X, y)):
 
     results["graforvfl"].append(auc_estimator)
 
-print(results)
+print(results)  # noqa: T201
 fig, ax = plt.subplots()
 sns.violinplot(results, ax=ax, inner="quart")
 ax.set_ylabel("ROC AUC")
