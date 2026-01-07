@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "rvfl"
 version = "0.0.0"
 description = "RVFL baseline and variants"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = ["numpy", "scikit-learn", "pandas", "ucimlrepo"]
 
 [tool.setuptools.packages.find]
