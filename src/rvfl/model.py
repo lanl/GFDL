@@ -119,6 +119,53 @@ class RVFL(BaseEstimator):
 
 
 class RVFLClassifier(ClassifierMixin, RVFL):
+    """
+    Random vector functional link network classifier.
+
+    Parameters
+    ----------
+
+    hidden_layer_sizes : array-like of shape (n_layers,)
+      The ith element represents the number of neurons in the ith
+      hidden layer.
+    activation : str, default="identity"
+      Activation function for the hidden layers.
+        - 'identity' or 'identity', no-op activation
+        - 'tanh', the hyperbolic tan function
+        - 'relu', the rectified linear unit function
+        - 'sigmoid', a non-linear function that squashes input into
+          the range `[0, 1]`
+        - 'softmax', the normalized exponential function
+        - 'softmin', `softmax` of the negated input
+        - 'log_sigmoid', the natural logarithm of the sigmoid function
+        - 'log_softmax', the logarithm of the standard softmax function
+    weight_scheme : str, default="uniform"
+      The random weight initialization scheme.
+        - 'zeros', all weights set to zero
+        - 'uniform', weights assigned from uniform distribution within `[0, 1)`
+        - 'range', weights assigned from ``np.arange()`` normalized to the number
+          of neurons
+        - 'normal', weights assigned from a Gaussian distribution with mean `0`
+          and standard deviation `1`.
+        - 'he_uniform', He uniform variance scaling weights.
+        - 'lecun_uniform', LeCun uniform weights.
+        - 'glorot_uniform', Glorot uniform weights, also called Xavier uniform
+          weights.
+        - 'he_normal', He normal initialized weights.
+        - 'lecun_normal', Lecun normal initialized weights.
+        - 'glorot_normal', Glorot normal initialized weights, also called
+          Xavier normal initialized weights.
+    direct_links : bool, default=`True`
+      Direct links are used in RVFL networks, while setting the value
+      to `False` will reusult in an ELM network.
+    seed : int, default=`None`
+      Random seed used to initialize the network.
+    reg_alpha : float, default=`None`
+      When `None`, use Moore-Penrose inversion to solve for the output
+      weights of the network. Otherwise, it specifies the constant that
+      multiplies the L2 term of `sklearn` `Ridge`, controlling the
+      regularization strength. `reg_alpha` must be a non-negative float.
+    """
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -128,53 +175,6 @@ class RVFLClassifier(ClassifierMixin, RVFL):
         seed: int = None,
         reg_alpha: float = None
     ):
-        """
-        Random vector functional link network classifier.
-
-        Parameters
-        ----------
-
-        hidden_layer_sizes : array-like of shape (n_layers,)
-          The ith element represents the number of neurons in the ith
-          hidden layer.
-        activation : str, default="identity"
-          Activation function for the hidden layers.
-            - 'identity' or 'identity', no-op activation
-            - 'tanh', the hyperbolic tan function
-            - 'relu', the rectified linear unit function
-            - 'sigmoid', a non-linear function that squashes input into
-              the range `[0, 1]`
-            - 'softmax', the normalized exponential function
-            - 'softmin', `softmax` of the negated input
-            - 'log_sigmoid', the natural logarithm of the sigmoid function
-            - 'log_softmax', the logarithm of the standard softmax function
-        weight_scheme : str, default="uniform"
-          The random weight initialization scheme.
-            - 'zeros', all weights set to zero
-            - 'uniform', weights assigned from uniform distribution within `[0, 1)`
-            - 'range', weights assigned from ``np.arange()`` normalized to the number
-              of neurons
-            - 'normal', weights assigned from a Gaussian distribution with mean `0`
-              and standard deviation `1`.
-            - 'he_uniform', He uniform variance scaling weights.
-            - 'lecun_uniform', LeCun uniform weights.
-            - 'glorot_uniform', Glorot uniform weights, also called Xavier uniform
-              weights.
-            - 'he_normal', He normal initialized weights.
-            - 'lecun_normal', Lecun normal initialized weights.
-            - 'glorot_normal', Glorot normal initialized weights, also called
-              Xavier normal initialized weights.
-        direct_links : bool, default=`True`
-          Direct links are used in RVFL networks, while setting the value
-          to `False` will reusult in an ELM network.
-        seed : int, default=`None`
-          Random seed used to initialize the network.
-        reg_alpha : float, default=`None`
-          When `None`, use Moore-Penrose inversion to solve for the output
-          weights of the network. Otherwise, it specifies the constant that
-          multiplies the L2 term of `sklearn` `Ridge`, controlling the
-          regularization strength. `reg_alpha` must be a non-negative float.
-        """
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
                        weight_scheme=weight_scheme,
@@ -496,6 +496,53 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
 
 
 class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
+    """
+    Random vector functional link network regressor.
+
+    Parameters
+    ----------
+
+    hidden_layer_sizes : array-like of shape (n_layers,)
+      The ith element represents the number of neurons in the ith
+      hidden layer.
+    activation : str, default="identity"
+      Activation function for the hidden layers.
+        - 'identity' or 'identity', no-op activation
+        - 'tanh', the hyperbolic tan function
+        - 'relu', the rectified linear unit function
+        - 'sigmoid', a non-linear function that squashes input into
+          the range `[0, 1]`
+        - 'softmax', the normalized exponential function
+        - 'softmin', `softmax` of the negated input
+        - 'log_sigmoid', the natural logarithm of the sigmoid function
+        - 'log_softmax', the logarithm of the standard softmax function
+    weight_scheme : str, default="uniform"
+      The random weight initialization scheme.
+        - 'zeros', all weights set to zero
+        - 'uniform', weights assigned from uniform distribution within `[0, 1)`
+        - 'range', weights assigned from ``np.arange()`` normalized to the number
+          of neurons
+        - 'normal', weights assigned from a Gaussian distribution with mean `0`
+          and standard deviation `1`.
+        - 'he_uniform', He uniform variance scaling weights.
+        - 'lecun_uniform', LeCun uniform weights.
+        - 'glorot_uniform', Glorot uniform weights, also called Xavier uniform
+          weights.
+        - 'he_normal', He normal initialized weights.
+        - 'lecun_normal', Lecun normal initialized weights.
+        - 'glorot_normal', Glorot normal initialized weights, also called
+          Xavier normal initialized weights.
+    direct_links : bool, default=`True`
+      Direct links are used in RVFL networks, while setting the value
+      to `False` will reusult in an ELM network.
+    seed : int, default=`None`
+      Random seed used to initialize the network.
+    reg_alpha : float, default=`None`
+      When `None`, use Moore-Penrose inversion to solve for the output
+      weights of the network. Otherwise, it specifies the constant that
+      multiplies the L2 term of `sklearn` `Ridge`, controlling the
+      regularization strength. `reg_alpha` must be a non-negative float.
+    """
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -505,53 +552,6 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
         seed: int = None,
         reg_alpha: float = None
     ):
-        """
-        Random vector functional link network regressor.
-
-        Parameters
-        ----------
-
-        hidden_layer_sizes : array-like of shape (n_layers,)
-          The ith element represents the number of neurons in the ith
-          hidden layer.
-        activation : str, default="identity"
-          Activation function for the hidden layers.
-            - 'identity' or 'identity', no-op activation
-            - 'tanh', the hyperbolic tan function
-            - 'relu', the rectified linear unit function
-            - 'sigmoid', a non-linear function that squashes input into
-              the range `[0, 1]`
-            - 'softmax', the normalized exponential function
-            - 'softmin', `softmax` of the negated input
-            - 'log_sigmoid', the natural logarithm of the sigmoid function
-            - 'log_softmax', the logarithm of the standard softmax function
-        weight_scheme : str, default="uniform"
-          The random weight initialization scheme.
-            - 'zeros', all weights set to zero
-            - 'uniform', weights assigned from uniform distribution within `[0, 1)`
-            - 'range', weights assigned from ``np.arange()`` normalized to the number
-              of neurons
-            - 'normal', weights assigned from a Gaussian distribution with mean `0`
-              and standard deviation `1`.
-            - 'he_uniform', He uniform variance scaling weights.
-            - 'lecun_uniform', LeCun uniform weights.
-            - 'glorot_uniform', Glorot uniform weights, also called Xavier uniform
-              weights.
-            - 'he_normal', He normal initialized weights.
-            - 'lecun_normal', Lecun normal initialized weights.
-            - 'glorot_normal', Glorot normal initialized weights, also called
-              Xavier normal initialized weights.
-        direct_links : bool, default=`True`
-          Direct links are used in RVFL networks, while setting the value
-          to `False` will reusult in an ELM network.
-        seed : int, default=`None`
-          Random seed used to initialize the network.
-        reg_alpha : float, default=`None`
-          When `None`, use Moore-Penrose inversion to solve for the output
-          weights of the network. Otherwise, it specifies the constant that
-          multiplies the L2 term of `sklearn` `Ridge`, controlling the
-          regularization strength. `reg_alpha` must be a non-negative float.
-        """
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
                        weight_scheme=weight_scheme,
