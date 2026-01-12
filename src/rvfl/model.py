@@ -555,6 +555,17 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
       weights of the network. Otherwise, it specifies the constant that
       multiplies the L2 term of `sklearn` `Ridge`, controlling the
       regularization strength. `reg_alpha` must be a non-negative float.
+
+    Examples
+    --------
+    >>> from rvfl.model import RVFLRegressor
+    >>> from sklearn.datasets import make_regression
+    >>> X, y = make_regression(n_features=4, n_informative=2,
+    ...                        random_state=0, shuffle=False)
+    >>> regr = RVFLRegressor(seed=0)
+    >>> regr.fit(X, y)
+    >>> print(regr.predict([[0, 0, 0, 0]]))
+    [-5.32907052e-15]
     """
     def __init__(
         self,
