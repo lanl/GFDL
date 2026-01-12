@@ -165,6 +165,19 @@ class RVFLClassifier(ClassifierMixin, RVFL):
       weights of the network. Otherwise, it specifies the constant that
       multiplies the L2 term of `sklearn` `Ridge`, controlling the
       regularization strength. `reg_alpha` must be a non-negative float.
+
+
+    Examples
+    --------
+    >>> from sklearn.datasets import make_classification
+    >>> from rvfl.model import RVFLClassifier
+    >>> X, y = make_classification(n_samples=1000, n_features=4,
+    ...                            n_informative=2, n_redundant=0,
+    ...                            random_state=0, shuffle=False)
+    >>> clf = RVFLClassifier(seed=0)
+    >>> clf.fit(X, y)
+    >>> print(clf.predict([[0, 0, 0, 0]]))
+    [1]
     """
     def __init__(
         self,
