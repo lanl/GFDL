@@ -166,7 +166,6 @@ class RVFLClassifier(ClassifierMixin, RVFL):
       multiplies the L2 term of `sklearn` `Ridge`, controlling the
       regularization strength. `reg_alpha` must be a non-negative float.
 
-
     Examples
     --------
     >>> from sklearn.datasets import make_classification
