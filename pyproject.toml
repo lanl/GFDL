@@ -29,3 +29,11 @@ checks = [
     "SA01", # we don't require "See Also" sections
     "ES01", # we don't require extended summaries
 ]
+
+exclude = [
+    '\.__init__$',
+    '\._check_voting$',
+    '\._forward$',
+    'EnsembleRVFL(\.|$)', # ignore base class
+    'RVFL(\.|$)', # ignore base class
+]

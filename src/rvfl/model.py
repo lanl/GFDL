@@ -1,3 +1,7 @@
+"""
+Gradient free neural network estimators.
+"""
+
 import numpy as np
 from scipy.special import logsumexp
 from scipy.stats import mode
@@ -475,6 +479,21 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
 
     @available_if(_check_voting)
     def predict_proba(self, X):
+        """
+        Predict class probabilities for X.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+          The input samples.
+
+        Returns
+        -------
+        ndarray
+          The class probabilities of the input samples. The order of the classes
+          corresponds to that in the attribute ``classes_``. The ndarray should
+          have shape (n_samples, n_classes).
+        """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
 
@@ -488,6 +507,19 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
         return np.mean(probs, axis=0)
 
     def predict(self, X):
+        """
+        Predict class for X.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+          The input samples.
+
+        Returns
+        -------
+        ndarray
+          The predicted classes, with shape (n_samples,) or (n_samples, n_outputs).
+        """
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
 
