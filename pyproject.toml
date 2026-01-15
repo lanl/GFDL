@@ -7,10 +7,17 @@ name = "rvfl"
 version = "0.0.0"
 description = "RVFL baseline and variants"
 requires-python = ">=3.12"
-dependencies = ["numpy", "scikit-learn", "pandas", "ucimlrepo"]
+dependencies = ["numpy", "scikit-learn", "pandas"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 rvfl = ["testdata/**/*"]
+
+[project.optional-dependencies]
+test = [
+    "ucimlrepo",
+    "pytest",
+    "pytest-cov",
+]
