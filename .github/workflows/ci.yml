@@ -31,5 +31,5 @@ jobs:
         ruff check
     - name: test
       run: |
-        cd /tmp
+        cd $RUNNER_TEMP
         python -m pytest --pyargs rvfl --cov=rvfl --cov-report=term-missing
