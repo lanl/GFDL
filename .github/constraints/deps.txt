@@ -1,8 +1,4 @@
 numpy
 scipy>=1.7.1
 scikit-learn>=1.2.1
-pandas
-mealpy>=3.0.2
-permetrics>=2.0.0
 matplotlib>=3.7.5
-

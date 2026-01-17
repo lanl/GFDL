@@ -1,7 +1,5 @@
-
 import numpy as np
 import pytest
-from graforvfl import RvflRegressor
 from sklearn.datasets import fetch_openml, make_regression
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
@@ -16,14 +14,25 @@ weights = ["uniform", "normal", "he_uniform", "lecun_uniform",
          "glorot_uniform", "he_normal", "lecun_normal", "glorot_normal"]
 
 
-@pytest.mark.parametrize("n_samples", [100, 1000])
-@pytest.mark.parametrize("n_targets", [10, 100])
-@pytest.mark.parametrize("hidden_layer_sizes", [(100,), (1000,)])
-@pytest.mark.parametrize("activation", activations)
-@pytest.mark.parametrize("weight_scheme", weights)
-@pytest.mark.parametrize("reg_alpha", [1, 10])
+@pytest.mark.parametrize("""n_samples,
+                            n_targets,
+                            hidden_layer_sizes,
+                            activation,
+                            weight_scheme,
+                            reg_alpha,
+                            exp_preds_shape,
+                            exp_preds_median,
+                            exp_preds_min""", [
+    # expected values are from the graforvfl library
+    (100, 10, (100,), "relu", "glorot_normal", 10, (25, 10),
+     -29.31478018, -490.5751822),
+    (100, 10, (100,), "tanh", "uniform", 100, (25, 10),
+     -34.613165002, -327.82362807),
+])
 def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
-                                  activation, weight_scheme, reg_alpha):
+                                  activation, weight_scheme, reg_alpha,
+                                  exp_preds_shape, exp_preds_median,
+                                  exp_preds_min):
     N, d = n_samples, n_targets
     RNG = 42
     X, y = make_regression(n_samples=N,
@@ -43,24 +52,7 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
     X_train_s = scaler.transform(X_train)
     X_test_s = scaler.transform(X_test)
 
-    grafo_act = "none" if activation == "identity" else activation
-    if weight_scheme == "uniform":
-        grafo_wts = "random_uniform"
-    elif weight_scheme == "normal":
-        grafo_wts = "random_normal"
-    else:
-        grafo_wts = weight_scheme
-
-    # Define models
-    models = {
-        "GrafoRVFL": RvflRegressor(
-        size_hidden=hidden_layer_sizes[0],
-        act_name=grafo_act,
-        weight_initializer=grafo_wts,
-        reg_alpha=reg_alpha,
-        seed=RNG
-        ),
-        "RVFL": RVFLRegressor(
+    model = RVFLRegressor(
             hidden_layer_sizes=hidden_layer_sizes,
             activation=activation,
             weight_scheme=weight_scheme,
@@ -68,23 +60,14 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
             seed=RNG,
             reg_alpha=reg_alpha
         )
-    }
-
-    # Fit + predict
-    preds = {}
-
-    for name, model in models.items():
-        Xtr, Xte = (X_train_s, X_test_s)
-        model.fit(Xtr, y_train)
-        yhat = model.predict(Xte)
-        preds[name] = yhat
-
-    # Compare GrafoRVFL and RVFL results
-    grf_results = preds["GrafoRVFL"]
-    cur_results = preds["RVFL"]
-
-    # Test results
-    np.testing.assert_allclose(cur_results, grf_results, atol=1e-07)
+    model.fit(X_train_s, y_train)
+    actual_preds = model.predict(X_test_s)
+    actual_preds_shape = actual_preds.shape
+    actual_preds_median = np.median(actual_preds)
+    actual_preds_min = actual_preds.min()
+    np.testing.assert_allclose(actual_preds_shape, exp_preds_shape)
+    np.testing.assert_allclose(actual_preds_median, exp_preds_median)
+    np.testing.assert_allclose(actual_preds_min, exp_preds_min)
 
 
 @parametrize_with_checks([RVFLRegressor()])

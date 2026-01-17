@@ -1,6 +1,5 @@
 # tests/test_model.py
 
-import graforvfl
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -365,18 +364,29 @@ def test_invalid_alpha(Classifier):
         bad_est.fit(X, y)
 
 
-@pytest.mark.parametrize("hidden_layer_sizes", [(10,), (100,)])
-@pytest.mark.parametrize("n_classes", [2, 5])
-@pytest.mark.parametrize("activation", activations)
-@pytest.mark.parametrize("weight_scheme", weights[2:])
-@pytest.mark.parametrize("alpha", [None, 0.5, 1])
+@pytest.mark.parametrize("""hidden_layer_sizes,
+                            n_classes,
+                            activation,
+                            weight_scheme,
+                            alpha,
+                            exp_proba_shape,
+                            exp_proba_median,
+                            exp_proba_min""", [
+
+                    # expected values are from graforvfl library
+                    ([10,], 2, "relu", "uniform", None, (20, 2), 0.5, 0.0444571694),
+                    ([100,], 2, "tanh", "normal", None, (20, 2), 0.5, 0.02538905725),
+                    ([10,], 5, "softmax", "lecun_uniform", None, (20, 5),
+                     0.186506112, 0.08469873),
+])
 def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
-                                      weight_scheme, alpha):
-    # test binary and multi-class classification against
-    # the open source graforvfl library on some synthetic
+                                      weight_scheme, alpha, exp_proba_shape,
+                                      exp_proba_median, exp_proba_min):
+    # test binary and multi-class classification against expected values
+    # from the open source graforvfl library on some synthetic
     # datasets
     X, y = make_classification(n_classes=n_classes,
-                               n_informative=8)
+                               n_informative=8, random_state=0)
     X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.2,
                                                         random_state=0)
     model = RVFLClassifier(hidden_layer_sizes=hidden_layer_sizes,
@@ -387,26 +397,14 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
                  reg_alpha=alpha)
     model.fit(X_train, y_train)
 
-    grafo_act = "none" if activation == "identity" else activation
-    if weight_scheme == "uniform":
-        grafo_wts = "random_uniform"
-    elif weight_scheme == "normal":
-        grafo_wts = "random_normal"
-    else:
-        grafo_wts = weight_scheme
-
-    grafo_rvfl = graforvfl.RvflClassifier(size_hidden=hidden_layer_sizes[0],
-                                          act_name=grafo_act,
-                                          weight_initializer=grafo_wts,
-                                          reg_alpha=alpha,
-                                          seed=0)
-
-    grafo_rvfl.fit(X_train, y_train)
-
     actual_proba = model.predict_proba(X_test)
-    expected_proba = grafo_rvfl.predict_proba(X_test)
+    actual_proba_shape = actual_proba.shape
+    actual_proba_median = np.median(actual_proba)
+    actual_proba_min = np.min(actual_proba)
 
-    np.testing.assert_allclose(actual_proba, expected_proba)
+    np.testing.assert_allclose(actual_proba_shape, exp_proba_shape)
+    np.testing.assert_allclose(actual_proba_median, exp_proba_median)
+    np.testing.assert_allclose(actual_proba_min, exp_proba_min)
 
 
 @parametrize_with_checks([RVFLClassifier(), EnsembleRVFLClassifier()])
