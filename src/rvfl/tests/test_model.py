@@ -1,5 +1,3 @@
-# tests/test_model.py
-
 import graforvfl
 import numpy as np
 import pytest

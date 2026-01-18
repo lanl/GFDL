@@ -1,4 +1,3 @@
-# rvfl/model.py
 import numpy as np
 from scipy.special import logsumexp
 from scipy.stats import mode
