@@ -22,6 +22,7 @@ from rvfl.weights import resolve_weight
 
 
 class RVFL(BaseEstimator):
+    """Base class for ELM classification and regression."""
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -126,61 +127,143 @@ class RVFLClassifier(ClassifierMixin, RVFL):
     """
     Random vector functional link network classifier.
 
+    This model fits a feedforward neural network with fixed random hidden-layer
+    parameters and solves for the output weights using linear least squares or
+    ridge regression. When direct links are disabled, the model architecture corresponds
+    to an Extreme Learning Machine (ELM) architecture.
+
     Parameters
     ----------
+    hidden_layer_sizes : array-like of shape(n_layers,), default=(100,)
+        The ith element represents the number of neurons in the ith
+        hidden layer.
 
-    hidden_layer_sizes : array-like of shape (n_layers,)
-      The ith element represents the number of neurons in the ith
-      hidden layer.
-    activation : str, default="identity"
-      Activation function for the hidden layers.
-        - 'identity' or 'identity', no-op activation
-        - 'tanh', the hyperbolic tan function
-        - 'relu', the rectified linear unit function
+    activation : {'identity', 'logistic', 'tanh', 'relu', 'softmax'}, default='identity'
+        Activation function for the hidden layers.
+
+        - 'identity', no-op activation, useful to implement linear bottleneck,
+          returns f(x) = x
+
+        - 'tanh', the hyperbolic tan function,
+          returns f(x) = tanh(x).
+
+        - 'relu', the rectified linear unit function,
+          returns f(x) = max(0, x)
+        
         - 'sigmoid', a non-linear function that squashes input into
           the range `[0, 1]`
-        - 'softmax', the normalized exponential function
+
+        - 'softmax', the K-way softmax function,
+          returns f(x) = exp(x - max(x)) / sum(exp(x - max(x)))
+
         - 'softmin', `softmax` of the negated input
+
         - 'log_sigmoid', the natural logarithm of the sigmoid function
+
         - 'log_softmax', the logarithm of the standard softmax function
-    weight_scheme : str, default="uniform"
-      The random weight initialization scheme.
-        - 'zeros', all weights set to zero
-        - 'uniform', weights assigned from uniform distribution within `[0, 1)`
-        - 'range', weights assigned from ``np.arange()`` normalized to the number
-          of neurons
-        - 'normal', weights assigned from a Gaussian distribution with mean `0`
-          and standard deviation `1`.
-        - 'he_uniform', He uniform variance scaling weights.
-        - 'lecun_uniform', LeCun uniform weights.
-        - 'glorot_uniform', Glorot uniform weights, also called Xavier uniform
-          weights.
-        - 'he_normal', He normal initialized weights.
-        - 'lecun_normal', Lecun normal initialized weights.
-        - 'glorot_normal', Glorot normal initialized weights, also called
-          Xavier normal initialized weights.
-    direct_links : bool, default=`True`
-      Direct links are used in RVFL networks, while setting the value
-      to `False` will reusult in an ELM network.
-    seed : int, default=`None`
-      Random seed used to initialize the network.
-    reg_alpha : float, default=`None`
-      When `None`, use Moore-Penrose inversion to solve for the output
-      weights of the network. Otherwise, it specifies the constant that
-      multiplies the L2 term of `sklearn` `Ridge`, controlling the
-      regularization strength. `reg_alpha` must be a non-negative float.
+
+    weight_init : {
+            'zeros',
+            'uniform',
+            'range',
+            'normal',
+            'he_uniform',
+            'lecun_uniform',
+            'glorot_uniform',
+            'he_normal',
+            'lecun_normal',
+            'glorot_normal'
+            }, default='uniform'
+        Distribution used to initialize the random hidden-layer weights.
+
+        The initialization functions generate weight matrices of shape
+        (n_hidden_units, n_features), where values are drawn
+        according to the selected scheme.
+
+        - 'zeros', initialize all weights to zero
+
+        - 'uniform', draw weights from a uniform distribution over `[0, 1)`
+
+        - 'range', initialize weights using `arange(n_hidden_units * n_features)`,
+        reshaped and normalized to zero mean and unit variance
+
+        - 'normal', draw weights from a normal (Gaussian) distribution
+        with mean 0 and standard deviation 1.
+
+        - 'he_uniform', draw weights from a uniform distribution over
+        `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
+
+        - 'lecun_uniform', draw weights from a uniform distribution over
+        `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
+
+        - 'glorot_uniform', draw weights from a uniform distribution over
+        `[-sqrt(3 / ((n_features + n_hidden_units) / 2)),
+        sqrt(3 / ((n_features + n_hidden_units) / 2))]`
+
+        - 'he_normal', draw weights from a normal (Gaussian) distribution
+        with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
+
+        - 'lecun_normal', draw weights from a normal (Gaussian) distribution
+        with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
+
+        - 'glorot_normal', draw weights from a normal (Gaussian) distribution
+        with mean 0 and standard deviation
+        `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
+
+    direct_links : bool, default=True
+        Whether to connect input layer to output nodes.
+
+        When set to True, the original input features are concatenated with the
+        hidden-layer activations. This corresponds to the Random Vector Functional Link
+        (RVFL) architecture.
+
+    seed : int, RandomState instance, default=None
+        Determines random number generation for weights and bias
+        initialization.
+        Pass an int for reproducible results across multiple function calls.
+        See :term:`Glossary <random_state>`.
+
+    reg_alpha : float, default=None
+        Amount of ridge shrinkage to apply in order to improve
+        conditioning during Ridge regression. When set to zero or `None`,
+        model uses direct solve using Moore-Penrose Pseudo-Inverse.
+
+    Attributes
+    ----------
+    n_features_in_ : int
+        Number of features seen during :term:`fit`.
+
+    classes_ : ndarray or list of ndarray of shape (n_classes,)
+        Class labels for each output.
+
+    W_ : list of ndarray of shape (n_layers,)
+        Weight matrices of the hidden layers. The ith element in the list represents the
+        weight matrix corresponding to layer i.
+
+    b_ : list of ndarray of shape (n_layers,)
+        Bias vectors of the hidden layers. The ith element in the list represents the
+        bias term corresponding to layer i.
+
+    coeff_ : ndarray of shape (n_features_out, n_outputs)
+        Output weight matrix learned by linear regression.
+
+    See Also
+    --------
+    RVFLRegressor
 
     Examples
     --------
-    >>> from sklearn.datasets import make_classification
     >>> from rvfl.model import RVFLClassifier
-    >>> X, y = make_classification(n_samples=1000, n_features=4,
-    ...                            n_informative=2, n_redundant=0,
-    ...                            random_state=0, shuffle=False)
-    >>> clf = RVFLClassifier(seed=0)
-    >>> clf.fit(X, y)
-    >>> print(clf.predict([[0, 0, 0, 0]]))
-    [1]
+    >>> from sklearn.datasets import make_classification
+    >>> from sklearn.model_selection import train_test_split
+    >>> X, y = make_classification(n_samples=100, random_state=1)
+    >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y,
+    ...                                                     random_state=1)
+    >>> clf = RVFLClassifier(random_state=1).fit(X_train, y_train)
+    >>> clf.predict_proba(X_test[:1])
+    array([[0.46123716, 0.53876284]])
+    >>> clf.predict(X_test[:5, :])
+    array([1, 0, 1, 0, 1])
     """
     def __init__(
         self,
@@ -555,60 +638,139 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
     """
     Random vector functional link network regressor.
 
+    This model fits a feedforward neural network with fixed random hidden-layer
+    parameters and solves for the output weights using linear least squares or
+    ridge regression. When direct links are disabled, the model architecture corresponds
+    to an Extreme Learning Machine (ELM) architecture.
+
     Parameters
     ----------
+    hidden_layer_sizes : array-like of shape(n_layers - 2,), default=(100,)
+        The ith element represents the number of neurons in the ith
+        hidden layer.
 
-    hidden_layer_sizes : array-like of shape (n_layers,)
-      The ith element represents the number of neurons in the ith
-      hidden layer.
-    activation : str, default="identity"
-      Activation function for the hidden layers.
-        - 'identity' or 'identity', no-op activation
-        - 'tanh', the hyperbolic tan function
-        - 'relu', the rectified linear unit function
+    activation : {'identity', 'logistic', 'tanh', 'relu', 'softmax'}, default='identity'
+        Activation function for the hidden layers.
+
+        - 'identity', no-op activation, useful to implement linear bottleneck,
+          returns f(x) = x
+
+        - 'tanh', the hyperbolic tan function,
+          returns f(x) = tanh(x).
+
+        - 'relu', the rectified linear unit function,
+          returns f(x) = max(0, x)
+        
         - 'sigmoid', a non-linear function that squashes input into
           the range `[0, 1]`
-        - 'softmax', the normalized exponential function
+
+        - 'softmax', the K-way softmax function,
+          returns f(x) = exp(x - max(x)) / sum(exp(x - max(x)))
+
         - 'softmin', `softmax` of the negated input
+
         - 'log_sigmoid', the natural logarithm of the sigmoid function
+
         - 'log_softmax', the logarithm of the standard softmax function
-    weight_scheme : str, default="uniform"
-      The random weight initialization scheme.
-        - 'zeros', all weights set to zero
-        - 'uniform', weights assigned from uniform distribution within `[0, 1)`
-        - 'range', weights assigned from ``np.arange()`` normalized to the number
-          of neurons
-        - 'normal', weights assigned from a Gaussian distribution with mean `0`
-          and standard deviation `1`.
-        - 'he_uniform', He uniform variance scaling weights.
-        - 'lecun_uniform', LeCun uniform weights.
-        - 'glorot_uniform', Glorot uniform weights, also called Xavier uniform
-          weights.
-        - 'he_normal', He normal initialized weights.
-        - 'lecun_normal', Lecun normal initialized weights.
-        - 'glorot_normal', Glorot normal initialized weights, also called
-          Xavier normal initialized weights.
-    direct_links : bool, default=`True`
-      Direct links are used in RVFL networks, while setting the value
-      to `False` will reusult in an ELM network.
-    seed : int, default=`None`
-      Random seed used to initialize the network.
-    reg_alpha : float, default=`None`
-      When `None`, use Moore-Penrose inversion to solve for the output
-      weights of the network. Otherwise, it specifies the constant that
-      multiplies the L2 term of `sklearn` `Ridge`, controlling the
-      regularization strength. `reg_alpha` must be a non-negative float.
+    weight_init : {
+            'zeros',
+            'uniform',
+            'range',
+            'normal',
+            'he_uniform',
+            'lecun_uniform',
+            'glorot_uniform',
+            'he_normal',
+            'lecun_normal',
+            'glorot_normal'
+            }, default='uniform'
+        Distribution used to initialize the random hidden-layer weights.
+
+        The initialization functions generate weight matrices of shape
+        (n_hidden_units, n_features), where values are drawn
+        according to the selected scheme.
+
+        - 'zeros', initialize all weights to zero
+
+        - 'uniform', draw weights from a uniform distribution over `[0, 1)`
+
+        - 'range', initialize weights using `arange(n_hidden_units * n_features)`,
+        reshaped and normalized to zero mean and unit variance
+
+        - 'normal', draw weights from a normal (Gaussian) distribution
+        with mean 0 and standard deviation 1.
+
+        - 'he_uniform', draw weights from a uniform distribution over
+        `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
+
+        - 'lecun_uniform', draw weights from a uniform distribution over
+        `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
+
+        - 'glorot_uniform', draw weights from a uniform distribution over
+        `[-sqrt(3 / ((n_features + n_hidden_units) / 2)),
+        sqrt(3 / ((n_features + n_hidden_units) / 2))]`
+
+        - 'he_normal', draw weights from a normal (Gaussian) distribution
+        with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
+
+        - 'lecun_normal', draw weights from a normal (Gaussian) distribution
+        with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
+
+        - 'glorot_normal', draw weights from a normal (Gaussian) distribution
+        with mean 0 and standard deviation
+        `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
+
+    direct_links : bool, default=True
+        Whether to connect input layer to output nodes.
+
+        When set to True, the original input features are concatenated with the
+        hidden-layer activations. This corresponds to the Random Vector Functional Link
+        (RVFL) architecture.
+
+    seed : int, RandomState instance, default=None
+        Determines random number generation for weights and bias
+        initialization.
+        Pass an int for reproducible results across multiple function calls.
+        See :term:`Glossary <random_state>`.
+
+    reg_alpha : float, default=None
+        Amount of ridge shrinkage to apply in order to improve
+        conditioning during Ridge regression. When set to zero or `None`,
+        model uses direct solve using Moore-Penrose Pseudo-Inverse.
+
+    Attributes
+    ----------
+    n_features_in_ : int
+        Number of features seen during :term:`fit`.
+
+    W_ : list of ndarray of shape (n_layers,)
+        Weight matrices of the hidden layers. The ith element in the list represents the
+        weight matrix corresponding to layer i.
+
+    b_ : list of ndarray of shape (n_layers,)
+        Bias vectors of the hidden layers. The ith element in the list represents the
+        bias term corresponding to layer i.
+
+    coeff_ : ndarray of shape (n_features_out, n_outputs)
+        Output weight matrix learned by linear regression.
+
+    See Also
+    --------
+    RVFLClassifier
 
     Examples
     --------
     >>> from rvfl.model import RVFLRegressor
     >>> from sklearn.datasets import make_regression
-    >>> X, y = make_regression(n_features=4, n_informative=2,
-    ...                        random_state=0, shuffle=False)
-    >>> regr = RVFLRegressor(seed=0)
-    >>> regr.fit(X, y)
-    >>> print(regr.predict([[0, 0, 0, 0]]))
-    [-5.32907052e-15]
+    >>> from sklearn.model_selection import train_test_split
+    >>> X, y = make_regression(n_samples=200, n_features=20, random_state=1)
+    >>> X_train, X_test, y_train, y_test = train_test_split(X, y,
+    ...                                                     random_state=1)
+    >>> regr = RVFLRegressor(random_state=1)
+    >>> regr.fit(X_train, y_train)
+    RVFLRegressor(random_state=1)
+    >>> regr.predict(X_test[:2])
+    array([  18.368, -278.014])
     """
     def __init__(
         self,
