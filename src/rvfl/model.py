@@ -213,9 +213,10 @@ class RVFLClassifier(ClassifierMixin, RVFL):
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.
 
-        When set to True, the original input features are concatenated with the
-        hidden-layer activations. This corresponds to the Random Vector Functional Link
-        (RVFL) architecture.
+        Whether to connect input layer to output nodes.
+
+        When set to False, only the hidden-layer activations are used, corresponding
+        to the Extreme Learning Machine (ELM) architecture.
 
     seed : int, RandomState instance, default=None
         Determines random number generation for weights and bias
@@ -259,7 +260,7 @@ class RVFLClassifier(ClassifierMixin, RVFL):
     >>> X, y = make_classification(n_samples=100, random_state=1)
     >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y,
     ...                                                     random_state=1)
-    >>> clf = RVFLClassifier(random_state=1).fit(X_train, y_train)
+    >>> clf = RVFLClassifier(seed=1).fit(X_train, y_train)
     >>> clf.predict_proba(X_test[:1])
     array([[0.46123716, 0.53876284]])
     >>> clf.predict(X_test[:5, :])
@@ -645,7 +646,7 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
 
     Parameters
     ----------
-    hidden_layer_sizes : array-like of shape(n_layers - 2,), default=(100,)
+    hidden_layer_sizes : array-like of shape(n_layers,), default=(100,)
         The ith element represents the number of neurons in the ith
         hidden layer.
 
@@ -723,9 +724,8 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.
 
-        When set to True, the original input features are concatenated with the
-        hidden-layer activations. This corresponds to the Random Vector Functional Link
-        (RVFL) architecture.
+        When set to False, only the hidden-layer activations are used, corresponding
+        to the Extreme Learning Machine (ELM) architecture.
 
     seed : int, RandomState instance, default=None
         Determines random number generation for weights and bias
@@ -766,9 +766,9 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
     >>> X, y = make_regression(n_samples=200, n_features=20, random_state=1)
     >>> X_train, X_test, y_train, y_test = train_test_split(X, y,
     ...                                                     random_state=1)
-    >>> regr = RVFLRegressor(random_state=1)
+    >>> regr = RVFLRegressor(seed=1)
     >>> regr.fit(X_train, y_train)
-    RVFLRegressor(random_state=1)
+    RVFLRegressor(seed=1)
     >>> regr.predict(X_test[:2])
     array([  18.368, -278.014])
     """
