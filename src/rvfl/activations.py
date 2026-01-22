@@ -1,4 +1,3 @@
-# rvfl/activations.py
 import numpy as np
 import scipy
 

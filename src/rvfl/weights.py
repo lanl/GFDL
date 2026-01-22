@@ -1,4 +1,3 @@
-# rvfl/weights.py
 import numpy as np
 
 
