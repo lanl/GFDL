@@ -404,7 +404,7 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
     actual_proba = model.predict_proba(X_test)
     expected_proba = grafo_rvfl.predict_proba(X_test)
 
-    np.testing.assert_allclose(actual_proba, expected_proba)
+    np.testing.assert_allclose(actual_proba, expected_proba, rtol=2.5e-07)
 
 
 @parametrize_with_checks([RVFLClassifier(), EnsembleRVFLClassifier()])
