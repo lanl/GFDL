@@ -32,4 +32,4 @@ jobs:
     - name: test
       run: |
         cd /tmp
-        python -m pytest --pyargs rvfl --cov=rvfl --cov-report=term-missing
+        python -m pytest --pyargs gfdl --cov=gfdl --cov-report=term-missing

@@ -9,7 +9,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.estimator_checks import parametrize_with_checks
 from ucimlrepo import fetch_ucirepo
 
-from rvfl.model import EnsembleRVFLClassifier, RVFLClassifier
+from gfdl.model import EnsembleGFDLClassifier, GFDLClassifier
 
 activations = ["relu", "tanh", "sigmoid", "identity", "softmax", "softmin",
                "log_sigmoid", "log_softmax"]
@@ -33,7 +33,7 @@ def test_model(hidden_layer_sizes, n_classes, activation, weight_scheme, direct_
                                n_informative=8,
                                random_state=42)
 
-    model = RVFLClassifier(hidden_layer_sizes, activation, weight_scheme,
+    model = GFDLClassifier(hidden_layer_sizes, activation, weight_scheme,
                            direct_links, 0)
 
     model.fit(X, y)
@@ -82,7 +82,7 @@ def test_multilayer_math(weight_scheme, hidden_layer_size):
                                n_informative=8,
                                random_state=42)
 
-    model = RVFLClassifier(
+    model = GFDLClassifier(
         hidden_layer_sizes=hidden_layer_size,
         activation="identity",
         weight_scheme=weight_scheme,
@@ -141,7 +141,7 @@ def test_multilayer_progression(weight_scheme,
                                class_sep=0.5)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
                                                         random_state=0)
-    model = RVFLClassifier(
+    model = GFDLClassifier(
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
         weight_scheme=weight_scheme,
@@ -156,7 +156,7 @@ def test_multilayer_progression(weight_scheme,
 
 @pytest.mark.parametrize(
         "Classifier, target",
-        [(RVFLClassifier, 0.7161), (EnsembleRVFLClassifier, 0.7132)]
+        [(GFDLClassifier, 0.7161), (EnsembleGFDLClassifier, 0.7132)]
         )
 def test_against_shi2021(Classifier, target):
     # test multilayer classification against
@@ -239,8 +239,8 @@ def test_against_shi2021(Classifier, target):
 
     # tightest bound for both rel and abs
     # values in paper:
-    # dRVFL accuracy: 66.33%
-    # edRVFL accuracy: 65.81%
+    # dGFDL accuracy: 66.33%
+    # edGFDL accuracy: 65.81%
     assert acc == pytest.approx(target, rel=1e-4, abs=0)
 
 
@@ -255,7 +255,7 @@ def test_soft_and_hard():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
                                                         random_state=0)
 
-    model = EnsembleRVFLClassifier(
+    model = EnsembleGFDLClassifier(
         hidden_layer_sizes=(5, 5, 5),
         activation="tanh",
         weight_scheme="uniform",
@@ -284,7 +284,7 @@ def test_hard_vote_proba_error():
                                random_state=0)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
                                                         random_state=0)
-    model = EnsembleRVFLClassifier(
+    model = EnsembleGFDLClassifier(
         hidden_layer_sizes=(5, 5, 5),
         activation="tanh",
         weight_scheme="uniform",
@@ -311,7 +311,7 @@ def test_soft_and_hard_can_differ(alpha):
 
     # adding more layers (heads) increases the chance of disagreement
     # between the two voting methods
-    model = EnsembleRVFLClassifier(
+    model = EnsembleGFDLClassifier(
         hidden_layer_sizes=(3, 3, 3, 3),
         activation="tanh",
         weight_scheme="uniform",
@@ -329,7 +329,7 @@ def test_soft_and_hard_can_differ(alpha):
     np.testing.assert_array_equal(y_soft == y_hard, difference)
 
 
-@pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
+@pytest.mark.parametrize("Classifier", [GFDLClassifier, EnsembleGFDLClassifier])
 def test_invalid_activation_weight(Classifier):
     X = np.zeros((30, 4))
     y = np.zeros((30,))
@@ -348,7 +348,7 @@ def test_invalid_activation_weight(Classifier):
         invalid_weight.fit(X, y)
 
 
-@pytest.mark.parametrize("Classifier", [RVFLClassifier, EnsembleRVFLClassifier])
+@pytest.mark.parametrize("Classifier", [GFDLClassifier, EnsembleGFDLClassifier])
 def test_invalid_alpha(Classifier):
     # the sklearn estimator API bans input validation in __init__,
     # so we need to call fit() for error handling to kick in:
@@ -377,7 +377,7 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
                                n_informative=8)
     X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.2,
                                                         random_state=0)
-    model = RVFLClassifier(hidden_layer_sizes=hidden_layer_sizes,
+    model = GFDLClassifier(hidden_layer_sizes=hidden_layer_sizes,
                  activation=activation,
                  weight_scheme=weight_scheme,
                  direct_links=1,
@@ -407,6 +407,6 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
     np.testing.assert_allclose(actual_proba, expected_proba, rtol=2.5e-07)
 
 
-@parametrize_with_checks([RVFLClassifier(), EnsembleRVFLClassifier()])
+@parametrize_with_checks([GFDLClassifier(), EnsembleGFDLClassifier()])
 def test_sklearn_api_conformance(estimator, check):
     check(estimator)
