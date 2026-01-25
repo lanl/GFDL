@@ -29,9 +29,10 @@ jobs:
     - name: lint
       run: |
         ruff check
-    - name: lint docs
+    - name: lint and build docs
       run: |
         numpydoc lint src/rvfl/model.py
+        cd docs && make html SPHINXOPTS="-W --keep-going"
     - name: test
       run: |
         cd /tmp
