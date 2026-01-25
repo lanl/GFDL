@@ -149,7 +149,7 @@ class RVFLClassifier(ClassifierMixin, RVFL):
 
         - 'relu', the rectified linear unit function,
           returns f(x) = max(0, x)
-        
+
         - 'sigmoid', a non-linear function that squashes input into
           the range `[0, 1]`
 
@@ -661,7 +661,7 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
 
         - 'relu', the rectified linear unit function,
           returns f(x) = max(0, x)
-        
+
         - 'sigmoid', a non-linear function that squashes input into
           the range `[0, 1]`
 
