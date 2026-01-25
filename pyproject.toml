@@ -21,6 +21,7 @@ test = [
     "ucimlrepo",
     "pytest",
     "pytest-cov",
+]
 
 [tool.numpydoc_validation]
 checks = [
