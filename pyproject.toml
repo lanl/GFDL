@@ -3,17 +3,34 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rvfl"
+name = "gfdl"
 version = "0.0.0"
-description = "RVFL baseline and variants"
+description = "Gradient Free Deep Learning (GFDL) networks including single and multi layer random vector functional link (RVFL) networks and extreme learning machines (ELMs)"
 requires-python = ">=3.12"
 dependencies = ["numpy", "scikit-learn", "pandas"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-rvfl = ["testdata/**/*"]
+gfdl = ["testdata/**/*"]
 
 
 [project.optional-dependencies]
@@ -35,6 +52,6 @@ exclude = [
     '\.__init__$',
     '\._check_voting$',
     '\._forward$',
-    'EnsembleRVFL(\.|$)', # ignore base class
-    'RVFL(\.|$)', # ignore base class
+    'EnsembleGFDL(\.|$)', # ignore base class
+    'GFDL(\.|$)', # ignore base class
 ]

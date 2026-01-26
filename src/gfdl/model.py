@@ -17,11 +17,11 @@ from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
 
-from rvfl.activations import resolve_activation
-from rvfl.weights import resolve_weight
+from gfdl.activations import resolve_activation
+from gfdl.weights import resolve_weight
 
 
-class RVFL(BaseEstimator):
+class GFDL(BaseEstimator):
     """Base class for ELM classification and regression."""
     def __init__(
         self,
@@ -123,7 +123,7 @@ class RVFL(BaseEstimator):
         return np.random.default_rng(seed)
 
 
-class RVFLClassifier(ClassifierMixin, RVFL):
+class GFDLClassifier(ClassifierMixin, GFDL):
     """
     Random vector functional link network classifier.
 
@@ -356,7 +356,7 @@ class RVFLClassifier(ClassifierMixin, RVFL):
         return out
 
 
-class EnsembleRVFL(RVFL):
+class EnsembleGFDL(GFDL):
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -449,7 +449,7 @@ class EnsembleRVFL(RVFL):
         return outs
 
 
-class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
+class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
     """
     Ensemble random vector functional link network classifier.
 
@@ -635,7 +635,7 @@ class EnsembleRVFLClassifier(ClassifierMixin, EnsembleRVFL):
         return m.mode
 
 
-class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
+class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
     """
     Random vector functional link network regressor.
 
