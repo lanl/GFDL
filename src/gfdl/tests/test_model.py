@@ -239,8 +239,8 @@ def test_against_shi2021(Classifier, target):
 
     # tightest bound for both rel and abs
     # values in paper:
-    # dGFDL accuracy: 66.33%
-    # edGFDL accuracy: 65.81%
+    # dRVFL accuracy: 66.33%
+    # edRVFL accuracy: 65.81%
     assert acc == pytest.approx(target, rel=1e-4, abs=0)
 
 

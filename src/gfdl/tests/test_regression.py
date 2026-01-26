@@ -52,7 +52,7 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
 
     # Define models
     models = {
-        "GrafoGFDL": RvflRegressor(
+        "GrafoRVFL": RvflRegressor(
         size_hidden=hidden_layer_sizes[0],
         act_name=grafo_act,
         weight_initializer=grafo_wts,
@@ -78,8 +78,8 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
         yhat = model.predict(Xte)
         preds[name] = yhat
 
-    # Compare GrafoGFDL and GFDL results
-    grf_results = preds["GrafoGFDL"]
+    # Compare GrafoRVFL and GFDL results
+    grf_results = preds["GrafoRVFL"]
     cur_results = preds["GFDL"]
 
     # Test results
@@ -92,7 +92,7 @@ def test_sklearn_api_conformance(estimator, check):
 
 
 def test_regression_boston():
-    # real-world data test with multi-layer GFDL
+    # real-world data test with multi-layer RVFL
     boston = fetch_openml(name="boston", version=1, as_frame=False)
     X, y = boston.data, boston.target.astype(float)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
