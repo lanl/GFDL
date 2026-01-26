@@ -7,3 +7,5 @@ permetrics>=2.0.0
 matplotlib>=3.7.5
 numpydoc
 sphinx_copybutton
+sphinx_design
+pydata_sphinx_theme
