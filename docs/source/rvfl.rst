@@ -1,4 +1,4 @@
-rvfl package
+gfdl package
 ============
 
 Subpackages
@@ -10,18 +10,18 @@ Subpackages
 Submodules
 ----------
 
-rvfl.activations module
+gfdl.activations module
 -----------------------
 
-.. automodule:: rvfl.activations
+.. automodule:: gfdl.activations
    :members:
    :show-inheritance:
    :undoc-members:
 
-rvfl.model module
+gfdl.model module
 -----------------
 
-.. automodule:: rvfl.model
+.. automodule:: gfdl.model
    :members:
    :show-inheritance:
    :undoc-members:
@@ -29,7 +29,7 @@ rvfl.model module
 Module contents
 ---------------
 
-.. automodule:: rvfl
+.. automodule:: gfdl
    :members:
    :show-inheritance:
    :undoc-members:

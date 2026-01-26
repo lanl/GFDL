@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'rvfl'
+project = 'gfdl'
 copyright = '2026, Emma Viani, Navamita Ray, Tyler Reddy'
 author = 'Emma Viani, Navamita Ray, Tyler Reddy'
 
