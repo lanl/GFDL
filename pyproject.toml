@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rvfl"
+name = "gfdl"
 version = "0.0.0"
-description = "RVFL baseline and variants"
+description = "Gradient Free Deep Learning (GFDL) networks including single and multi layer random vector functional link (RVFL) networks and extreme learning machines (ELMs)"
 requires-python = ">=3.12"
 dependencies = ["numpy", "scikit-learn", "pandas"]
 classifiers = [
@@ -30,7 +30,7 @@ classifiers = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-rvfl = ["testdata/**/*"]
+gfdl = ["testdata/**/*"]
 
 [project.optional-dependencies]
 test = [
