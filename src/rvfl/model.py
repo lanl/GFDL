@@ -162,7 +162,7 @@ class RVFLClassifier(ClassifierMixin, RVFL):
 
         - 'log_softmax', the logarithm of the standard softmax function
 
-    weight_init : {
+    weight_scheme : {
             'zeros',
             'uniform',
             'range',
@@ -250,7 +250,7 @@ class RVFLClassifier(ClassifierMixin, RVFL):
 
     See Also
     --------
-    RVFLRegressor
+    RVFLRegressor : Regressor variant for the RVFL architecture.
 
     Examples
     --------
@@ -673,7 +673,7 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
         - 'log_sigmoid', the natural logarithm of the sigmoid function
 
         - 'log_softmax', the logarithm of the standard softmax function
-    weight_init : {
+    weight_scheme : {
             'zeros',
             'uniform',
             'range',
@@ -756,7 +756,7 @@ class RVFLRegressor(RegressorMixin, MultiOutputMixin, RVFL):
 
     See Also
     --------
-    RVFLClassifier
+    RVFLClassifier : Classifier variant for the RVFL architecture.
 
     Examples
     --------
