@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.12", "3.13", "3.14"]
 
     steps:
@@ -31,5 +31,5 @@ jobs:
         ruff check
     - name: test
       run: |
-        cd /tmp
+        cd $RUNNER_TEMP
         python -m pytest --pyargs rvfl --cov=rvfl --cov-report=term-missing
