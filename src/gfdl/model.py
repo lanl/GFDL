@@ -504,7 +504,8 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
     ----------
     .. [1] Shi, Katuwal, Suganthan, Tanveer, "Random vector functional
        link neural network based ensemble deep learning." Pattern Recognition,
-       vol. 117, pp. 107978, 2021. :doi:`10.1016/j.patcog.2021.107978,`.
+       vol. 117, pp. 107978, 2021, https://doi.org/10.1016/j.patcog.2021.107978.
+       [link](https://www.sciencedirect.com/science/article/pii/S0031320321001655)
 
     Examples
     --------
