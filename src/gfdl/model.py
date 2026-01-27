@@ -174,30 +174,31 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
         - 'uniform', draw weights from a uniform distribution over `[0, 1)`
 
-        - 'range', initialize weights using `arange(n_hidden_units * n_features)`, 
+        - 'range', initialize weights using `arange(n_hidden_units * n_features)`,
             reshaped and normalized to zero mean and unit variance
 
-        - 'normal', draw weights from a normal (Gaussian) distribution with 
+        - 'normal', draw weights from a normal (Gaussian) distribution with
             mean 0 and standard deviation 1.
 
-        - 'he_uniform', draw weights from a uniform distribution over 
+        - 'he_uniform', draw weights from a uniform distribution over
             `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
 
-        - 'lecun_uniform', draw weights from a uniform distribution over 
+        - 'lecun_uniform', draw weights from a uniform distribution over
             `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
 
-        - 'glorot_uniform', draw weights from a uniform distribution over 
-            `[-sqrt(3 / ((n_features + n_hidden_units) / 2)), 
+        - 'glorot_uniform', draw weights from a uniform distribution over
+            `[-sqrt(3 / ((n_features + n_hidden_units) / 2)),
             sqrt(3 / ((n_features + n_hidden_units) / 2))]`
 
-        - 'he_normal', draw weights from a normal (Gaussian) distribution 
+        - 'he_normal', draw weights from a normal (Gaussian) distribution
             with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
 
-        - 'lecun_normal', draw weights from a normal (Gaussian) distribution 
+        - 'lecun_normal', draw weights from a normal (Gaussian) distribution
             with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
 
-        - 'glorot_normal', draw weights from a normal (Gaussian) distribution 
-            with mean 0 and standard deviation `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
+        - 'glorot_normal', draw weights from a normal (Gaussian) distribution
+            with mean 0 and standard deviation
+            `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
 
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.
@@ -659,7 +660,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         - 'log_sigmoid', the natural logarithm of the sigmoid function
 
         - 'log_softmax', the logarithm of the standard softmax function
-        
+
     weight_scheme : str, default='uniform'
 
         Distribution used to initialize the random hidden-layer weights.
@@ -672,30 +673,31 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
         - 'uniform', draw weights from a uniform distribution over `[0, 1)`
 
-        - 'range', initialize weights using `arange(n_hidden_units * n_features)`, 
+        - 'range', initialize weights using `arange(n_hidden_units * n_features)`,
             reshaped and normalized to zero mean and unit variance
 
-        - 'normal', draw weights from a normal (Gaussian) distribution with 
+        - 'normal', draw weights from a normal (Gaussian) distribution with
             mean 0 and standard deviation 1.
 
-        - 'he_uniform', draw weights from a uniform distribution over 
+        - 'he_uniform', draw weights from a uniform distribution over
             `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
 
-        - 'lecun_uniform', draw weights from a uniform distribution over 
+        - 'lecun_uniform', draw weights from a uniform distribution over
             `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
 
-        - 'glorot_uniform', draw weights from a uniform distribution over 
-            `[-sqrt(3 / ((n_features + n_hidden_units) / 2)), 
+        - 'glorot_uniform', draw weights from a uniform distribution over
+            `[-sqrt(3 / ((n_features + n_hidden_units) / 2)),
             sqrt(3 / ((n_features + n_hidden_units) / 2))]`
 
-        - 'he_normal', draw weights from a normal (Gaussian) distribution 
+        - 'he_normal', draw weights from a normal (Gaussian) distribution
             with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
 
-        - 'lecun_normal', draw weights from a normal (Gaussian) distribution 
+        - 'lecun_normal', draw weights from a normal (Gaussian) distribution
             with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
-            
-        - 'glorot_normal', draw weights from a normal (Gaussian) distribution 
-            with mean 0 and standard deviation `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
+
+        - 'glorot_normal', draw weights from a normal (Gaussian) distribution
+            with mean 0 and standard deviation
+            `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
 
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.
