@@ -25,13 +25,18 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
 ]
 
+autosummary_generate = True
 templates_path = ['_templates']
 exclude_patterns = []
-
-
+numpydoc_class_members_toctree = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'pydata_sphinx_theme'
 html_static_path = []
+
+intersphinx_mapping = {
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "sklearn": ("https://scikit-learn.org/stable", None),
+}

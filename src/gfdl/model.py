@@ -162,18 +162,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
         - 'log_softmax', the logarithm of the standard softmax function
 
-    weight_scheme : {
-            'zeros',
-            'uniform',
-            'range',
-            'normal',
-            'he_uniform',
-            'lecun_uniform',
-            'glorot_uniform',
-            'he_normal',
-            'lecun_normal',
-            'glorot_normal'
-            }, default='uniform'
+    weight_scheme : str, default='uniform'
+
         Distribution used to initialize the random hidden-layer weights.
 
         The initialization functions generate weight matrices of shape
@@ -184,37 +174,33 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
         - 'uniform', draw weights from a uniform distribution over `[0, 1)`
 
-        - 'range', initialize weights using `arange(n_hidden_units * n_features)`,
-        reshaped and normalized to zero mean and unit variance
+        - 'range', initialize weights using `arange(n_hidden_units * n_features)`, 
+            reshaped and normalized to zero mean and unit variance
 
-        - 'normal', draw weights from a normal (Gaussian) distribution
-        with mean 0 and standard deviation 1.
+        - 'normal', draw weights from a normal (Gaussian) distribution with 
+            mean 0 and standard deviation 1.
 
-        - 'he_uniform', draw weights from a uniform distribution over
-        `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
+        - 'he_uniform', draw weights from a uniform distribution over 
+            `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
 
-        - 'lecun_uniform', draw weights from a uniform distribution over
-        `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
+        - 'lecun_uniform', draw weights from a uniform distribution over 
+            `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
 
-        - 'glorot_uniform', draw weights from a uniform distribution over
-        `[-sqrt(3 / ((n_features + n_hidden_units) / 2)),
-        sqrt(3 / ((n_features + n_hidden_units) / 2))]`
+        - 'glorot_uniform', draw weights from a uniform distribution over 
+            `[-sqrt(3 / ((n_features + n_hidden_units) / 2)), 
+            sqrt(3 / ((n_features + n_hidden_units) / 2))]`
 
-        - 'he_normal', draw weights from a normal (Gaussian) distribution
-        with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
+        - 'he_normal', draw weights from a normal (Gaussian) distribution 
+            with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
 
-        - 'lecun_normal', draw weights from a normal (Gaussian) distribution
-        with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
+        - 'lecun_normal', draw weights from a normal (Gaussian) distribution 
+            with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
 
-        - 'glorot_normal', draw weights from a normal (Gaussian) distribution
-        with mean 0 and standard deviation
-        `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
+        - 'glorot_normal', draw weights from a normal (Gaussian) distribution 
+            with mean 0 and standard deviation `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
 
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.
-
-        Whether to connect input layer to output nodes.
-
         When set to False, only the hidden-layer activations are used, corresponding
         to the Extreme Learning Machine (ELM) architecture.
 
@@ -459,7 +445,7 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
     hidden_layer_sizes : array-like of shape (n_layers,)
       The ith element represents the number of neurons in the ith
       hidden layer.
-    activation : str, default="identity"
+    activation : {'identity', 'logistic', 'tanh', 'relu', 'softmax'}, default='identity'
       Activation function for the hidden layers.
         - 'identity' or 'identity', no-op activation
         - 'tanh', the hyperbolic tan function
@@ -505,7 +491,6 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
     .. [1] Shi, Katuwal, Suganthan, Tanveer, "Random vector functional
        link neural network based ensemble deep learning." Pattern Recognition,
        vol. 117, pp. 107978, 2021, https://doi.org/10.1016/j.patcog.2021.107978.
-       [link](https://www.sciencedirect.com/science/article/pii/S0031320321001655)
 
     Examples
     --------
@@ -674,18 +659,9 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         - 'log_sigmoid', the natural logarithm of the sigmoid function
 
         - 'log_softmax', the logarithm of the standard softmax function
-    weight_scheme : {
-            'zeros',
-            'uniform',
-            'range',
-            'normal',
-            'he_uniform',
-            'lecun_uniform',
-            'glorot_uniform',
-            'he_normal',
-            'lecun_normal',
-            'glorot_normal'
-            }, default='uniform'
+        
+    weight_scheme : str, default='uniform'
+
         Distribution used to initialize the random hidden-layer weights.
 
         The initialization functions generate weight matrices of shape
@@ -696,31 +672,30 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
         - 'uniform', draw weights from a uniform distribution over `[0, 1)`
 
-        - 'range', initialize weights using `arange(n_hidden_units * n_features)`,
-        reshaped and normalized to zero mean and unit variance
+        - 'range', initialize weights using `arange(n_hidden_units * n_features)`, 
+            reshaped and normalized to zero mean and unit variance
 
-        - 'normal', draw weights from a normal (Gaussian) distribution
-        with mean 0 and standard deviation 1.
+        - 'normal', draw weights from a normal (Gaussian) distribution with 
+            mean 0 and standard deviation 1.
 
-        - 'he_uniform', draw weights from a uniform distribution over
-        `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
+        - 'he_uniform', draw weights from a uniform distribution over 
+            `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
 
-        - 'lecun_uniform', draw weights from a uniform distribution over
-        `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
+        - 'lecun_uniform', draw weights from a uniform distribution over 
+            `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
 
-        - 'glorot_uniform', draw weights from a uniform distribution over
-        `[-sqrt(3 / ((n_features + n_hidden_units) / 2)),
-        sqrt(3 / ((n_features + n_hidden_units) / 2))]`
+        - 'glorot_uniform', draw weights from a uniform distribution over 
+            `[-sqrt(3 / ((n_features + n_hidden_units) / 2)), 
+            sqrt(3 / ((n_features + n_hidden_units) / 2))]`
 
-        - 'he_normal', draw weights from a normal (Gaussian) distribution
-        with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
+        - 'he_normal', draw weights from a normal (Gaussian) distribution 
+            with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
 
-        - 'lecun_normal', draw weights from a normal (Gaussian) distribution
-        with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
-
-        - 'glorot_normal', draw weights from a normal (Gaussian) distribution
-        with mean 0 and standard deviation
-        `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
+        - 'lecun_normal', draw weights from a normal (Gaussian) distribution 
+            with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
+            
+        - 'glorot_normal', draw weights from a normal (Gaussian) distribution 
+            with mean 0 and standard deviation `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
 
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.
