@@ -3,16 +3,42 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-gfdl documentation
-==================
+Gradient Free Deep Learning
+===========================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+Gradient Free Deep Learning is a Python package for ...
+
+It provides:
+
+- A scikit-learn compatible estimator (:class:`gfdl.model.GFDLClassifier`)
+- A small set of neural-network style activations (:mod:`gfdl.activations`)
+
+Getting started
+---------------
+
+Install:
+
+.. code-block:: bash
+
+   pip install gfdl
+
+Quick example
+-------------
+
+.. code-block:: python
+
+   import numpy as np
+   from gfdl.model import GFDLClassifier
+
+   X = np.random.randn(100, 10)
+   y = (X[:, 0] > 0).astype(int)
+
+   clf = GFDLClassifier()
+   clf.fit(X, y)
 
 
 .. toctree::
+   :hidden:
    :maxdepth: 2
-   :caption: Contents:
 
-   modules 
+   api/index

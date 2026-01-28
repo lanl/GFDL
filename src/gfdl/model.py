@@ -22,7 +22,7 @@ from gfdl.weights import resolve_weight
 
 
 class GFDL(BaseEstimator):
-    """Base class for ELM classification and regression."""
+    """Base class for GFDL for classification and regression."""
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -138,29 +138,25 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         The ith element represents the number of neurons in the ith
         hidden layer.
 
-    activation : {'identity', 'logistic', 'tanh', 'relu', 'softmax'}, default='identity'
+    activation : str, default='identity'
         Activation function for the hidden layers.
 
         - 'identity', no-op activation, useful to implement linear bottleneck,
           returns f(x) = x
 
-        - 'tanh', the hyperbolic tan function,
-          returns f(x) = tanh(x).
+        - 'tanh':  :func:`gfdl.activations.tanh`.
 
-        - 'relu', the rectified linear unit function,
-          returns f(x) = max(0, x)
+        - 'relu': :func:`gfdl.activations.relu`.
 
-        - 'sigmoid', a non-linear function that squashes input into
-          the range `[0, 1]`
+        - 'sigmoid': :func:`gfdl.activations.sigmoid`.
 
-        - 'softmax', the K-way softmax function,
-          returns f(x) = exp(x - max(x)) / sum(exp(x - max(x)))
+        - 'softmax': :func:`gfdl.activations.softmax`.
 
-        - 'softmin', `softmax` of the negated input
+        - 'softmin': :func:`gfdl.activations.softmin`.
 
-        - 'log_sigmoid', the natural logarithm of the sigmoid function
+        - 'log_sigmoid': :func:`gfdl.activations.log_sigmoid`.
 
-        - 'log_softmax', the logarithm of the standard softmax function
+        - 'log_softmax': :func:`gfdl.activations.log_softmax`.
 
     weight_scheme : str, default='uniform'
 
@@ -237,17 +233,17 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
     See Also
     --------
-    RVFLRegressor : Regressor variant for the RVFL architecture.
+    GFDLRegressor : Regressor variant for the RVFL architecture.
 
     Examples
     --------
-    >>> from rvfl.model import RVFLClassifier
+    >>> from gfdl.model import GFDLClassifier
     >>> from sklearn.datasets import make_classification
     >>> from sklearn.model_selection import train_test_split
     >>> X, y = make_classification(n_samples=100, random_state=1)
     >>> X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y,
     ...                                                     random_state=1)
-    >>> clf = RVFLClassifier(seed=1).fit(X_train, y_train)
+    >>> clf = GFDLClassifier(seed=1).fit(X_train, y_train)
     >>> clf.predict_proba(X_test[:1])
     array([[0.46123716, 0.53876284]])
     >>> clf.predict(X_test[:5, :])
@@ -344,6 +340,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
 
 class EnsembleGFDL(GFDL):
+    """Base class for ensemble GFDL model for classification and regression."""
     def __init__(
         self,
         hidden_layer_sizes: np.typing.ArrayLike = (100,),
@@ -446,17 +443,27 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
     hidden_layer_sizes : array-like of shape (n_layers,)
       The ith element represents the number of neurons in the ith
       hidden layer.
-    activation : {'identity', 'logistic', 'tanh', 'relu', 'softmax'}, default='identity'
-      Activation function for the hidden layers.
-        - 'identity' or 'identity', no-op activation
-        - 'tanh', the hyperbolic tan function
-        - 'relu', the rectified linear unit function
-        - 'sigmoid', a non-linear function that squashes input into
-          the range `[0, 1]`
-        - 'softmax', the normalized exponential function
-        - 'softmin', `softmax` of the negated input
-        - 'log_sigmoid', the natural logarithm of the sigmoid function
-        - 'log_softmax', the logarithm of the standard softmax function
+
+    activation : str, default='identity'
+        Activation function for the hidden layers.
+
+        - 'identity', no-op activation, useful to implement linear bottleneck,
+          returns f(x) = x
+
+        - 'tanh':  :func:`gfdl.activations.tanh`.
+
+        - 'relu': :func:`gfdl.activations.relu`.
+
+        - 'sigmoid': :func:`gfdl.activations.sigmoid`.
+
+        - 'softmax': :func:`gfdl.activations.softmax`.
+
+        - 'softmin': :func:`gfdl.activations.softmin`.
+
+        - 'log_sigmoid': :func:`gfdl.activations.log_sigmoid`.
+
+        - 'log_softmax': :func:`gfdl.activations.log_softmax`.
+
     weight_scheme : str, default="uniform"
       The random weight initialization scheme.
         - 'zeros', all weights set to zero
@@ -496,11 +503,11 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
     Examples
     --------
     >>> from sklearn.datasets import make_classification
-    >>> from rvfl.model import EnsembleRVFLClassifier
+    >>> from gfdl.model import EnsembleGFDLClassifier
     >>> X, y = make_classification(n_samples=1000, n_features=4,
     ...                            n_informative=2, n_redundant=0,
     ...                            random_state=0, shuffle=False)
-    >>> clf = EnsembleRVFLClassifier(seed=0)
+    >>> clf = EnsembleGFDLClassifier(seed=0)
     >>> clf.fit(X, y)
     >>> print(clf.predict([[0, 0, 0, 0]]))
     [1]
@@ -637,29 +644,25 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         The ith element represents the number of neurons in the ith
         hidden layer.
 
-    activation : {'identity', 'logistic', 'tanh', 'relu', 'softmax'}, default='identity'
+    activation : str, default='identity'
         Activation function for the hidden layers.
 
         - 'identity', no-op activation, useful to implement linear bottleneck,
           returns f(x) = x
 
-        - 'tanh', the hyperbolic tan function,
-          returns f(x) = tanh(x).
+        - 'tanh':  :func:`gfdl.activations.tanh`.
 
-        - 'relu', the rectified linear unit function,
-          returns f(x) = max(0, x)
+        - 'relu': :func:`gfdl.activations.relu`.
 
-        - 'sigmoid', a non-linear function that squashes input into
-          the range `[0, 1]`
+        - 'sigmoid': :func:`gfdl.activations.sigmoid`.
 
-        - 'softmax', the K-way softmax function,
-          returns f(x) = exp(x - max(x)) / sum(exp(x - max(x)))
+        - 'softmax': :func:`gfdl.activations.softmax`.
 
-        - 'softmin', `softmax` of the negated input
+        - 'softmin': :func:`gfdl.activations.softmin`.
 
-        - 'log_sigmoid', the natural logarithm of the sigmoid function
+        - 'log_sigmoid': :func:`gfdl.activations.log_sigmoid`.
 
-        - 'log_softmax', the logarithm of the standard softmax function
+        - 'log_softmax': :func:`gfdl.activations.log_softmax`.
 
     weight_scheme : str, default='uniform'
 
@@ -734,19 +737,19 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
     See Also
     --------
-    RVFLClassifier : Classifier variant for the RVFL architecture.
+    GFDLClassifier : Classifier variant for the RVFL architecture.
 
     Examples
     --------
-    >>> from rvfl.model import RVFLRegressor
+    >>> from gfdl.model import GFDLRegressor
     >>> from sklearn.datasets import make_regression
     >>> from sklearn.model_selection import train_test_split
     >>> X, y = make_regression(n_samples=200, n_features=20, random_state=1)
     >>> X_train, X_test, y_train, y_test = train_test_split(X, y,
     ...                                                     random_state=1)
-    >>> regr = RVFLRegressor(seed=1)
+    >>> regr = GFDLRegressor(seed=1)
     >>> regr.fit(X_train, y_train)
-    RVFLRegressor(seed=1)
+    GFDLRegressor(seed=1)
     >>> regr.predict(X_test[:2])
     array([  18.368, -278.014])
     """

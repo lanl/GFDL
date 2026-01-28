@@ -31,7 +31,7 @@ jobs:
         ruff check
     - name: lint and build docs
       run: |
-        numpydoc lint src/gfdl/model.py
+        numpydoc lint src/gfdl/model.py src/gfdl/activations.py 
         cd docs && make html SPHINXOPTS="-W --keep-going"
     - name: test
       run: |
