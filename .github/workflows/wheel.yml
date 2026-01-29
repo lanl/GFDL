@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.12", "3.13", "3.14"]
 
     steps:
@@ -35,5 +35,5 @@ jobs:
         python -m pip install --no-deps "permetrics>=2.0.0" "mealpy>=3.0.2"
         python -m pip install --no-deps graforvfl
         python -m pip install pandas ucimlrepo
-        cd /tmp
+        cd $RUNNER_TEMP
         python -m pytest --pyargs gfdl --cov=gfdl --cov-report=term-missing
