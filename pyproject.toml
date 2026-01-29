@@ -7,7 +7,6 @@ name = "gfdl"
 version = "0.0.0"
 description = "Gradient Free Deep Learning (GFDL) networks including single and multi layer random vector functional link (RVFL) networks and extreme learning machines (ELMs)"
 requires-python = ">=3.12"
-dependencies = ["numpy", "scikit-learn", "pandas"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -25,6 +24,8 @@ classifiers = [
     "Operating System :: Unix",
     "Operating System :: MacOS",
 ]
+dependencies = ["numpy>=2.0.0",
+                "scikit-learn>=1.2.1"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
