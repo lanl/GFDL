@@ -1,5 +1,5 @@
 """
-Gradient free neural network estimators.
+Estimators for gradient free deep learning.
 """
 
 import numpy as np
@@ -144,47 +144,52 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         - 'identity', no-op activation, useful to implement linear bottleneck,
           returns f(x) = x
 
-        - 'tanh':  :func:`gfdl.activations.tanh`.
+        - 'tanh': :func:`tanh <gfdl.activations.tanh>`.
 
-        - 'relu': :func:`gfdl.activations.relu`.
+        - 'relu': :func:`relu <gfdl.activations.relu>`.
 
-        - 'sigmoid': :func:`gfdl.activations.sigmoid`.
+        - 'sigmoid': :func:`sigmoid <gfdl.activations.sigmoid>`.
 
-        - 'softmax': :func:`gfdl.activations.softmax`.
+        - 'softmax': :func:`softmax <gfdl.activations.softmax>`.
 
-        - 'softmin': :func:`gfdl.activations.softmin`.
+        - 'softmin': :func:`softmin <gfdl.activations.softmin>`.
 
-        - 'log_sigmoid': :func:`gfdl.activations.log_sigmoid`.
+        - 'log_sigmoid': :func:`log_sigmoid <gfdl.activations.log_sigmoid>`.
 
-        - 'log_softmax': :func:`gfdl.activations.log_softmax`.
+        - 'log_softmax': :func:`log_softmax <gfdl.activations.log_softmax>`.
 
     weight_scheme : str, default='uniform'
-
         Distribution used to initialize the random hidden-layer weights.
 
         The initialization functions generate weight matrices of shape
         (n_hidden_units, n_features), where values are drawn
         according to the selected scheme.
 
-        - 'zeros': :func:`gfdl.weights.zeros`.
+        - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'uniform': :func:`gfdl.weights.uniform`.
+        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
 
-        - 'range': :func:`gfdl.weights.range`.
+        - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
-        - 'normal': :func:`gfdl.weights.normal`.
+        - 'he_uniform': He uniform distribution
+          (:func:`he_uniform <gfdl.weights.he_uniform>`).
 
-        - 'he_uniform': :func:`gfdl.weights.he_uniform`.
+        - 'lecun_uniform': Lecun uniform distribution
+          (:func:`lecun_uniform <gfdl.weights.lecun_uniform>`).
 
-        - 'lecun_uniform': :func:`gfdl.weights.lecun_uniform`.
+        - 'glorot_uniform': Glorot uniform distribution
+          (:func:`glorot_uniform <gfdl.weights.glorot_uniform>`).
 
-        - 'glorot_uniform': :func:`gfdl.weights.glorot_uniform`.
+        - 'normal': Normal distribution (:func:`normal <gfdl.weights.normal>`).
 
-        - 'he_normal': :func:`gfdl.weights.he_normal`.
+        - 'he_normal': He normal distribution
+          (:func:`he_normal <gfdl.weights.he_normal>`).
 
-        - 'lecun_normal': :func:`gfdl.weights.lecun_normal`.
+        - 'lecun_normal': Lecun normal distribution
+          (:func:`lecun_normal <gfdl.weights.lecun_normal>`).
 
-        - 'glorot_normal': :func:`gfdl.weights.glorot_normal`.
+        - 'glorot_normal': Glorot normal distribution
+          (:func:`glorot_normal <gfdl.weights.glorot_normal>`).
 
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.
@@ -440,41 +445,52 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         - 'identity', no-op activation, useful to implement linear bottleneck,
           returns f(x) = x
 
-        - 'tanh':  :func:`gfdl.activations.tanh`.
+        - 'tanh': :func:`tanh <gfdl.activations.tanh>`.
 
-        - 'relu': :func:`gfdl.activations.relu`.
+        - 'relu': :func:`relu <gfdl.activations.relu>`.
 
-        - 'sigmoid': :func:`gfdl.activations.sigmoid`.
+        - 'sigmoid': :func:`sigmoid <gfdl.activations.sigmoid>`.
 
-        - 'softmax': :func:`gfdl.activations.softmax`.
+        - 'softmax': :func:`softmax <gfdl.activations.softmax>`.
 
-        - 'softmin': :func:`gfdl.activations.softmin`.
+        - 'softmin': :func:`softmin <gfdl.activations.softmin>`.
 
-        - 'log_sigmoid': :func:`gfdl.activations.log_sigmoid`.
+        - 'log_sigmoid': :func:`log_sigmoid <gfdl.activations.log_sigmoid>`.
 
-        - 'log_softmax': :func:`gfdl.activations.log_softmax`.
+        - 'log_softmax': :func:`log_softmax <gfdl.activations.log_softmax>`.
 
-    weight_scheme : str, default="uniform"
-      The random weight initialization scheme.
-        - 'zeros': :func:`gfdl.weights.zeros`.
+    weight_scheme : str, default='uniform'
+        Distribution used to initialize the random hidden-layer weights.
 
-        - 'uniform': :func:`gfdl.weights.uniform`.
+        The initialization functions generate weight matrices of shape
+        (n_hidden_units, n_features), where values are drawn
+        according to the selected scheme.
 
-        - 'range': :func:`gfdl.weights.range`.
+        - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'normal': :func:`gfdl.weights.normal`.
+        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
 
-        - 'he_uniform': :func:`gfdl.weights.he_uniform`.
+        - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
-        - 'lecun_uniform': :func:`gfdl.weights.lecun_uniform`.
+        - 'he_uniform': He uniform distribution
+          (:func:`he_uniform <gfdl.weights.he_uniform>`).
 
-        - 'glorot_uniform': :func:`gfdl.weights.glorot_uniform`.
+        - 'lecun_uniform': Lecun uniform distribution
+          (:func:`lecun_uniform <gfdl.weights.lecun_uniform>`).
 
-        - 'he_normal': :func:`gfdl.weights.he_normal`.
+        - 'glorot_uniform': Glorot uniform distribution
+          (:func:`glorot_uniform <gfdl.weights.glorot_uniform>`).
 
-        - 'lecun_normal': :func:`gfdl.weights.lecun_normal`.
+        - 'normal': Normal distribution (:func:`normal <gfdl.weights.normal>`).
 
-        - 'glorot_normal': :func:`gfdl.weights.glorot_normal`.
+        - 'he_normal': He normal distribution
+          (:func:`he_normal <gfdl.weights.he_normal>`).
+
+        - 'lecun_normal': Lecun normal distribution
+          (:func:`lecun_normal <gfdl.weights.lecun_normal>`).
+
+        - 'glorot_normal': Glorot normal distribution
+          (:func:`glorot_normal <gfdl.weights.glorot_normal>`).
 
     seed : int, default=`None`
       Random seed used to initialize the network.
@@ -648,47 +664,52 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         - 'identity', no-op activation, useful to implement linear bottleneck,
           returns f(x) = x
 
-        - 'tanh':  :func:`gfdl.activations.tanh`.
+        - 'tanh': :func:`tanh <gfdl.activations.tanh>`.
 
-        - 'relu': :func:`gfdl.activations.relu`.
+        - 'relu': :func:`relu <gfdl.activations.relu>`.
 
-        - 'sigmoid': :func:`gfdl.activations.sigmoid`.
+        - 'sigmoid': :func:`sigmoid <gfdl.activations.sigmoid>`.
 
-        - 'softmax': :func:`gfdl.activations.softmax`.
+        - 'softmax': :func:`softmax <gfdl.activations.softmax>`.
 
-        - 'softmin': :func:`gfdl.activations.softmin`.
+        - 'softmin': :func:`softmin <gfdl.activations.softmin>`.
 
-        - 'log_sigmoid': :func:`gfdl.activations.log_sigmoid`.
+        - 'log_sigmoid': :func:`log_sigmoid <gfdl.activations.log_sigmoid>`.
 
-        - 'log_softmax': :func:`gfdl.activations.log_softmax`.
+        - 'log_softmax': :func:`log_softmax <gfdl.activations.log_softmax>`.
 
     weight_scheme : str, default='uniform'
-
         Distribution used to initialize the random hidden-layer weights.
 
         The initialization functions generate weight matrices of shape
         (n_hidden_units, n_features), where values are drawn
         according to the selected scheme.
 
-        - 'zeros': :func:`gfdl.weights.zeros`.
+        - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'uniform': :func:`gfdl.weights.uniform`.
+        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
 
-        - 'range': :func:`gfdl.weights.range`.
+        - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
-        - 'normal': :func:`gfdl.weights.normal`.
+        - 'he_uniform': He uniform distribution
+          (:func:`he_uniform <gfdl.weights.he_uniform>`).
 
-        - 'he_uniform': :func:`gfdl.weights.he_uniform`.
+        - 'lecun_uniform': Lecun uniform distribution
+          (:func:`lecun_uniform <gfdl.weights.lecun_uniform>`).
 
-        - 'lecun_uniform': :func:`gfdl.weights.lecun_uniform`.
+        - 'glorot_uniform': Glorot uniform distribution
+          (:func:`glorot_uniform <gfdl.weights.glorot_uniform>`).
 
-        - 'glorot_uniform': :func:`gfdl.weights.glorot_uniform`.
+        - 'normal': Normal distribution (:func:`normal <gfdl.weights.normal>`).
 
-        - 'he_normal': :func:`gfdl.weights.he_normal`.
+        - 'he_normal': He normal distribution
+          (:func:`he_normal <gfdl.weights.he_normal>`).
 
-        - 'lecun_normal': :func:`gfdl.weights.lecun_normal`.
+        - 'lecun_normal': Lecun normal distribution
+          (:func:`lecun_normal <gfdl.weights.lecun_normal>`).
 
-        - 'glorot_normal': :func:`gfdl.weights.glorot_normal`.
+        - 'glorot_normal': Glorot normal distribution
+          (:func:`glorot_normal <gfdl.weights.glorot_normal>`).
 
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.

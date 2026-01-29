@@ -3,10 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Gradient Free Deep Learning
+Gradient Free Deep Learning 
 ===========================
 
-Gradient Free Deep Learning is a Python package for ...
+Gradient Free Deep Learning (GFDL) is a Python package for ...
 
 It provides:
 

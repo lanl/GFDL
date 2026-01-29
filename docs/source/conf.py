@@ -6,7 +6,8 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'gfdl'
+project = 'GFDL'
+html_title = project
 copyright = '2026, Emma Viani, Navamita Ray, Tyler Reddy'
 author = 'Emma Viani, Navamita Ray, Tyler Reddy'
 
@@ -29,6 +30,9 @@ autosummary_generate = True
 templates_path = ['_templates']
 exclude_patterns = []
 numpydoc_class_members_toctree = False
+add_module_names = False
+
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

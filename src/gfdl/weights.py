@@ -1,5 +1,5 @@
 """
-Supported weight functions for Gradient Free Deep Learning  estimators.
+Weight functions for Gradient Free Deep Learning estimators.
 """
 
 import numpy as np
@@ -53,7 +53,7 @@ def uniform(d, h, *, rng, **kwargs):
     Returns
     -------
     ndarray or scalar
-        Draw samples from the uniform distribution between `[0, 1)`.
+        Draw samples from the uniform distribution between ``[0, 1)``.
 
     Other Parameters
     ----------------
@@ -85,7 +85,7 @@ def range(d, h, **kwargs):
     Returns
     -------
     ndarray or scalar
-        Drawn samples from the discrete uniform distribution.
+        Drawn samples from the discrete uniform distribution ``[0, d*h)``.
 
     Other Parameters
     ----------------
@@ -119,7 +119,7 @@ def he_uniform(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the He uniform distribution between
-        `[sqrt(6 / h), sqrt(6 / h)]`.
+        ``[sqrt(6/h), sqrt(6/h))``.
 
     Other Parameters
     ----------------
@@ -164,7 +164,7 @@ def lecun_uniform(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the Lecun uniform distribution between
-        `[sqrt(3 / h), sqrt(3 / h))`.
+        ``[sqrt(3/h), sqrt(3/h))``.
 
     Other Parameters
     ----------------
@@ -201,7 +201,7 @@ def glorot_uniform(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the Glorot uniform distribution between
-        `[-sqrt(3 / ((d+h) / 2)), sqrt(3 / ((d+h) / 2))]`.
+        ``[-sqrt(6/(d+h)), sqrt(6/(d+h)))``.
 
     Other Parameters
     ----------------
@@ -238,7 +238,7 @@ def normal(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the normal distribution with
-        mean 0 and standard deviation 1.
+        mean ``0`` and standard deviation ``1``.
 
     Other Parameters
     ----------------
@@ -268,7 +268,7 @@ def he_normal(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the He normal distribution with
-        mean 0 and standard deviation `sqrt(2 / d)`.
+        mean ``0`` and standard deviation ``sqrt(2/d)``.
 
     Other Parameters
     ----------------
@@ -305,7 +305,7 @@ def lecun_normal(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the Lecun normal distribution
-        with mean 0 and standard deviation `1 / sqrt(h)`.
+        with mean ``0`` and standard deviation ``1/sqrt(h)``.
 
     Other Parameters
     ----------------
@@ -342,7 +342,7 @@ def glorot_normal(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the Glorot normal distribution with
-        mean 0 and standard deviation `sqrt(1 / ((d+h) / 2))`.
+        mean ``0`` and standard deviation ``sqrt(2/(d+h))``.
 
     Other Parameters
     ----------------
