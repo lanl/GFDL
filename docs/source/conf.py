@@ -24,6 +24,7 @@ extensions = [
     'sphinx_copybutton',
     'sphinx_design',
     'matplotlib.sphinxext.plot_directive',
+    "sphinx.ext.linkcode",
 ]
 
 autosummary_generate = True
@@ -45,3 +46,56 @@ intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "sklearn": ("https://scikit-learn.org/stable", None),
 }
+
+# For linking code to the apis 
+import inspect
+import os
+from pathlib import Path
+
+GITHUB_REPO_URL = "https://github.com/lanl/GFDL"   
+GITHUB_REF = "treddy_conform_with_numpydoc" 
+
+# conf.py is docs/source/conf.py -> repo root is usually parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+def linkcode_resolve(domain, info):
+    """Return a GitHub URL for the documented Python object."""
+    if domain != "py":
+        return None
+
+    modname = info.get("module")
+    fullname = info.get("fullname")
+    if not modname:
+        return None
+
+    try:
+        module = __import__(modname, fromlist=["*"])
+    except Exception:
+        return None
+
+    obj = module
+    for part in (fullname or "").split("."):
+        if not part:
+            continue
+        try:
+            obj = getattr(obj, part)
+        except Exception:
+            return None
+
+    try:
+        obj = inspect.unwrap(obj)
+        filename = inspect.getsourcefile(obj)
+        if not filename:
+            return None
+        filename = Path(filename).resolve()
+        source, start_line = inspect.getsourcelines(obj)
+    except Exception:
+        return None
+
+    try:
+        rel_path = filename.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return None
+
+    end_line = start_line + len(source) - 1
+    return f"{GITHUB_REPO_URL}/blob/{GITHUB_REF}/{rel_path}#L{start_line}-L{end_line}"
