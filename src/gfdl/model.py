@@ -166,35 +166,25 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         (n_hidden_units, n_features), where values are drawn
         according to the selected scheme.
 
-        - 'zeros', initialize all weights to zero
+        - 'zeros': :func:`gfdl.weights.zeros`.
 
-        - 'uniform', draw weights from a uniform distribution over `[0, 1)`
+        - 'uniform': :func:`gfdl.weights.uniform`.
 
-        - 'range', initialize weights using `arange(n_hidden_units * n_features)`,
-            reshaped and normalized to zero mean and unit variance
+        - 'range': :func:`gfdl.weights.range`.
 
-        - 'normal', draw weights from a normal (Gaussian) distribution with
-            mean 0 and standard deviation 1.
+        - 'normal': :func:`gfdl.weights.normal`.
 
-        - 'he_uniform', draw weights from a uniform distribution over
-            `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
+        - 'he_uniform': :func:`gfdl.weights.he_uniform`.
 
-        - 'lecun_uniform', draw weights from a uniform distribution over
-            `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
+        - 'lecun_uniform': :func:`gfdl.weights.lecun_uniform`.
 
-        - 'glorot_uniform', draw weights from a uniform distribution over
-            `[-sqrt(3 / ((n_features + n_hidden_units) / 2)),
-            sqrt(3 / ((n_features + n_hidden_units) / 2))]`
+        - 'glorot_uniform': :func:`gfdl.weights.glorot_uniform`.
 
-        - 'he_normal', draw weights from a normal (Gaussian) distribution
-            with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
+        - 'he_normal': :func:`gfdl.weights.he_normal`.
 
-        - 'lecun_normal', draw weights from a normal (Gaussian) distribution
-            with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
+        - 'lecun_normal': :func:`gfdl.weights.lecun_normal`.
 
-        - 'glorot_normal', draw weights from a normal (Gaussian) distribution
-            with mean 0 and standard deviation
-            `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
+        - 'glorot_normal': :func:`gfdl.weights.glorot_normal`.
 
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.
@@ -466,27 +456,35 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
 
     weight_scheme : str, default="uniform"
       The random weight initialization scheme.
-        - 'zeros', all weights set to zero
-        - 'uniform', weights assigned from uniform distribution within `[0, 1)`
-        - 'range', weights assigned from ``np.arange()`` normalized to the number
-          of neurons
-        - 'normal', weights assigned from a Gaussian distribution with mean `0`
-          and standard deviation `1`.
-        - 'he_uniform', He uniform variance scaling weights.
-        - 'lecun_uniform', LeCun uniform weights.
-        - 'glorot_uniform', Glorot uniform weights, also called Xavier uniform
-          weights.
-        - 'he_normal', He normal initialized weights.
-        - 'lecun_normal', Lecun normal initialized weights.
-        - 'glorot_normal', Glorot normal initialized weights, also called
-          Xavier normal initialized weights.
+        - 'zeros': :func:`gfdl.weights.zeros`.
+
+        - 'uniform': :func:`gfdl.weights.uniform`.
+
+        - 'range': :func:`gfdl.weights.range`.
+
+        - 'normal': :func:`gfdl.weights.normal`.
+
+        - 'he_uniform': :func:`gfdl.weights.he_uniform`.
+
+        - 'lecun_uniform': :func:`gfdl.weights.lecun_uniform`.
+
+        - 'glorot_uniform': :func:`gfdl.weights.glorot_uniform`.
+
+        - 'he_normal': :func:`gfdl.weights.he_normal`.
+
+        - 'lecun_normal': :func:`gfdl.weights.lecun_normal`.
+
+        - 'glorot_normal': :func:`gfdl.weights.glorot_normal`.
+
     seed : int, default=`None`
       Random seed used to initialize the network.
+
     reg_alpha : float, default=`None`
       When `None`, use Moore-Penrose inversion to solve for the output
       weights of the network. Otherwise, it specifies the constant that
       multiplies the L2 term of `sklearn` `Ridge`, controlling the
       regularization strength. `reg_alpha` must be a non-negative float.
+
     voting : str, default=`"soft"`
       Whether to use soft or hard voting in the ensemble.
 
@@ -672,35 +670,25 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         (n_hidden_units, n_features), where values are drawn
         according to the selected scheme.
 
-        - 'zeros', initialize all weights to zero
+        - 'zeros': :func:`gfdl.weights.zeros`.
 
-        - 'uniform', draw weights from a uniform distribution over `[0, 1)`
+        - 'uniform': :func:`gfdl.weights.uniform`.
 
-        - 'range', initialize weights using `arange(n_hidden_units * n_features)`,
-            reshaped and normalized to zero mean and unit variance
+        - 'range': :func:`gfdl.weights.range`.
 
-        - 'normal', draw weights from a normal (Gaussian) distribution with
-            mean 0 and standard deviation 1.
+        - 'normal': :func:`gfdl.weights.normal`.
 
-        - 'he_uniform', draw weights from a uniform distribution over
-            `[sqrt(6 / n_hidden_units), sqrt(6 / n_hidden_units))`
+        - 'he_uniform': :func:`gfdl.weights.he_uniform`.
 
-        - 'lecun_uniform', draw weights from a uniform distribution over
-            `[sqrt(3 / n_hidden_units), sqrt(3 / n_hidden_units))`
+        - 'lecun_uniform': :func:`gfdl.weights.lecun_uniform`.
 
-        - 'glorot_uniform', draw weights from a uniform distribution over
-            `[-sqrt(3 / ((n_features + n_hidden_units) / 2)),
-            sqrt(3 / ((n_features + n_hidden_units) / 2))]`
+        - 'glorot_uniform': :func:`gfdl.weights.glorot_uniform`.
 
-        - 'he_normal', draw weights from a normal (Gaussian) distribution
-            with mean 0 and standard deviation `sqrt(2 / n_hidden_units)`.
+        - 'he_normal': :func:`gfdl.weights.he_normal`.
 
-        - 'lecun_normal', draw weights from a normal (Gaussian) distribution
-            with mean 0 and standard deviation `1 / sqrt(n_hidden_units)`.
+        - 'lecun_normal': :func:`gfdl.weights.lecun_normal`.
 
-        - 'glorot_normal', draw weights from a normal (Gaussian) distribution
-            with mean 0 and standard deviation
-            `sqrt(1 / ((n_features + n_hidden_units) / 2))`.
+        - 'glorot_normal': :func:`gfdl.weights.glorot_normal`.
 
     direct_links : bool, default=True
         Whether to connect input layer to output nodes.

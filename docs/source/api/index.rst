@@ -11,3 +11,4 @@ API Reference
 
    gfdl.model
    gfdl.activations 
+   gfdl.weights
