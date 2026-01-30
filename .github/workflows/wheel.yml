@@ -27,6 +27,7 @@ jobs:
       run: |
         python -m build
     - name: install and test wheel
+      shell: bash
       run: |
         python -m pip install dist/gfdl*.whl
         # test deps need to be manually installed
