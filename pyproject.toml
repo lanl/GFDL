@@ -33,9 +33,26 @@ where = ["src"]
 [tool.setuptools.package-data]
 gfdl = ["testdata/**/*"]
 
+
 [project.optional-dependencies]
 test = [
     "ucimlrepo",
     "pytest",
     "pytest-cov",
+]
+
+[tool.numpydoc_validation]
+checks = [
+    "all", # report on all checks, except the below
+    "EX01", # we don't require examples sections yet
+    "SA01", # we don't require "See Also" sections
+    "ES01", # we don't require extended summaries
+]
+
+exclude = [
+    '\.__init__$',
+    '\._check_voting$',
+    '\._forward$',
+    'EnsembleGFDL(\.|$)', # ignore base class
+    'GFDL(\.|$)', # ignore base class
 ]

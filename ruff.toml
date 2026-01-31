@@ -1,4 +1,7 @@
 line-length = 88
+extend-exclude = [
+    "docs",
+]
 
 [format]
 line-ending = "lf"
