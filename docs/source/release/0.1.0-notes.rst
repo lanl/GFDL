@@ -1,0 +1,59 @@
+==========================
+GFDL 0.1.0 Release Notes
+==========================
+
+.. note:: GFDL 0.1.0 is not released yet!
+
+.. contents::
+
+Gradient free deep learning (GFDL) 0.1.0 is the culmination of 6
+months of hard work. This first release contains three new estimators.
+Our development attention will now shift to bug-fix releases on the
+0.1.x branch, and on adding new features on the main branch.
+
+This release requires Python 3.12-3.14.
+
+
+**************************
+Highlights of this release
+**************************
+
+* The new `gfdl.model.GFDLClassifier` is an estimator offering single and
+  multi-layer random vector functional link (RVFL) and extreme learning
+  machine (ELM) gradient-free neural networks. A regression equivalent,
+  `gfdl.model.GFDLRegressor` has also been added.
+* The new `gfdl.model.EnsembleGFDLClassifier` offers a connected ensemble
+  of estimators for multi-layer RVFLs that contribute to model output via
+  soft or hard voting.
+
+
+************
+New features
+************
+
+
+``gfdl.model`` improvements
+============================
+* Three new estimators that include single and multi layer extreme learning
+  machines (ELMs) and random vector functional link (RVFL) networks:
+  `gfdl.model.GFDLClassifier`, `gfdl.model.GFDLRegressor`, and
+  `gfdl.model.EnsembleGFDLClassifier`.
+
+
+
+*******
+Authors
+*******
+
+
+
+************************
+Issues closed for 0.1.0
+************************
+
+
+************************
+Pull requests for 0.1.0
+************************
+
+
