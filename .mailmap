@@ -1,0 +1,13 @@
+#
+# Canonical author name mapping for git and tools/authors.py, in format:
+#
+#     Canonical Name <canonical.email@somewhere> Alias Name <alias.email@somewhere>
+#
+# The email address parts should match what is in git log. The tools/authors.py does
+# not care about them, so it is possible to leave the email part empty, but in this
+# case git commands won't recognize the alias.
+#
+# This file is up-to-date if the command git log --format="%aN <%aE>" | sort -u
+# does not list the same person multiple times.
+#
+Emma Viani <eiviani@lanl.gov> eiviani-lanl <eiviani@lanl.gov>
