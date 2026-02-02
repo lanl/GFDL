@@ -1,6 +1,7 @@
 line-length = 88
 extend-exclude = [
     "tools/authors.py", # vendored from SciPy
+    "docs",
 ]
 
 [format]

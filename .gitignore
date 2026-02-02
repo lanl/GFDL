@@ -32,3 +32,5 @@ Sessionx.vim
 tags
 # Persistent undo
 [._]*.un~
+
+docs/source/**/generated/
