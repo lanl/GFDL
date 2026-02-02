@@ -6,11 +6,18 @@
 Gradient Free Deep Learning 
 ===========================
 
-Gradient Free Deep Learning (GFDL) is a Python package for ...
+Gradient Free Deep Learning (GFDL) is a Python package for performing
+machine learning classification and regression tasks using neural networks
+that do not require backpropagation.
 
-It provides:
+It specifically provides:
 
-- A scikit-learn compatible estimator (:class:`gfdl.model.GFDLClassifier`)
+- A scikit-learn compatible estimator for classification
+  (:class:`gfdl.model.GFDLClassifier`)
+- A scikit-learn compatible estimator for regression
+  (:class:`gfdl.model.GFDLRegressor`)
+- A scikit-learn compatible estimator for ensemble classification
+  (:class:`gfdl.model.EnsembleGFDLClassifier`)
 - A small set of neural-network style activations (:mod:`gfdl.activations`)
 
 Getting started
