@@ -1,5 +1,6 @@
 line-length = 88
 extend-exclude = [
+    "tools/gh_lists.py", # vendored from SciPy with minor shims
     "docs",
 ]
 
