@@ -30,7 +30,8 @@ class GFDL(BaseEstimator):
         weight_scheme: str = "uniform",
         direct_links: bool = True,
         seed: int = None,
-        reg_alpha: float = None
+        reg_alpha: float = None,
+        rtol: float | None = None,
     ):
         self.hidden_layer_sizes = hidden_layer_sizes
         self.activation = activation
@@ -38,6 +39,7 @@ class GFDL(BaseEstimator):
         self.seed = seed
         self.weight_scheme = weight_scheme
         self.reg_alpha = reg_alpha
+        self.rtol = rtol
 
     def fit(self, X, Y):
         # Assumption : X, Y have been pre-processed.
@@ -96,7 +98,7 @@ class GFDL(BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.pinv(D) @ Y
+            self.coeff_ = np.linalg.pinv(D, rtol=self.rtol) @ Y
         else:
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
             ridge.fit(D, Y)
@@ -728,6 +730,12 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         conditioning during Ridge regression. When set to zero or `None`,
         model uses direct solve using Moore-Penrose Pseudo-Inverse.
 
+    rtol : float, default=None
+        Cutoff for small singular values for the Moore-Penrose
+        pseudo-inverse. Only applies when ``reg_alpha=None``.
+        When ``rtol=None``, the array API standard default for
+        ``pinv`` is used.
+
     Attributes
     ----------
     n_features_in_ : int
@@ -769,14 +777,16 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         weight_scheme: str = "uniform",
         direct_links: bool = True,
         seed: int = None,
-        reg_alpha: float = None
+        reg_alpha: float = None,
+        rtol: float | None = None,
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
                        weight_scheme=weight_scheme,
                        direct_links=direct_links,
                        seed=seed,
-                       reg_alpha=reg_alpha)
+                       reg_alpha=reg_alpha,
+                       rtol=rtol)
 
     def fit(self, X, y):
         """
