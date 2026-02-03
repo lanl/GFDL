@@ -18,11 +18,11 @@ This release requires Python 3.12-3.14.
 Highlights of this release
 **************************
 
-* The new `gfdl.model.GFDLClassifier` is an estimator offering single and
+* The new :class:`~gfdl.model.GFDLClassifier` is an estimator offering single and
   multi-layer random vector functional link (RVFL) and extreme learning
   machine (ELM) gradient-free neural networks. A regression equivalent,
-  `gfdl.model.GFDLRegressor` has also been added.
-* The new `gfdl.model.EnsembleGFDLClassifier` offers a connected ensemble
+  :class:`~gfdl.model.GFDLRegressor` has also been added.
+* The new :class:`~gfdl.model.EnsembleGFDLClassifier` offers a connected ensemble
   of estimators for multi-layer RVFLs that contribute to model output via
   soft or hard voting.
 
@@ -36,8 +36,8 @@ New features
 ============================
 * Three new estimators that include single and multi layer extreme learning
   machines (ELMs) and random vector functional link (RVFL) networks:
-  `gfdl.model.GFDLClassifier`, `gfdl.model.GFDLRegressor`, and
-  `gfdl.model.EnsembleGFDLClassifier`.
+  :class:`~gfdl.model.GFDLClassifier`, :class:`~gfdl.model.GFDLRegressor`, and
+  :class:`~gfdl.model.EnsembleGFDLClassifier`.
 
 
 

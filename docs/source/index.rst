@@ -50,3 +50,4 @@ Quick example
 
    api/index
    dev
+   release 
