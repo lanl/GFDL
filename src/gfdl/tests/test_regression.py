@@ -94,7 +94,7 @@ def test_sklearn_api_conformance(estimator, check):
 @pytest.mark.parametrize("reg_alpha, expected", [
     (0.1, 0.78550376),
     # NOTE: for Moore-Penrose, a large singular value
-    # cutoff (rcond) is required to achieve reasonable R2 with
+    # cutoff (rtol) is required to achieve reasonable R2 with
     # the Boston Housing dataset
     (None, 0.73452466),
 ])

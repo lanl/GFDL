@@ -732,7 +732,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
     rtol : float, default=None
         Cutoff for small singular values for the Moore-Penrose
-        pseudo-inverse. Only applies when ``direct_links=True``.
+        pseudo-inverse. Only applies when ``reg_alpha=None``.
         When ``rtol=None``, the array API standard default for
         ``pinv`` is used.
 
