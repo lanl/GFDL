@@ -2,7 +2,7 @@ import graforvfl
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from sklearn.datasets import make_classification
+from sklearn.datasets import load_digits, make_classification
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -410,3 +410,43 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
 @parametrize_with_checks([GFDLClassifier(), EnsembleGFDLClassifier()])
 def test_sklearn_api_conformance(estimator, check):
     check(estimator)
+
+
+@pytest.mark.parametrize("reg_alpha, rtol, expected_acc, expected_roc", [
+    (0.1, 1e-15, 0.9083333333333333, 0.9893414717354735),
+    (None, 1e-15, 0.2222222222222222, 0.5518850599798965),
+    (None, 1e-3, 0.8972222222222223, 0.9802912857599967),
+])
+def test_rtol_classifier(reg_alpha, rtol, expected_acc, expected_roc):
+    # For Moore-Penrose, a large singular value cutoff (rtol)
+    # may be required to achieve reasonable results. This test
+    # showcases that a default low cut of leads to almost random classification
+    # output for the Digits datasets which is alleviated by increasing the cut off.
+    # This cut off has no effect on ridge solver.
+    data = load_digits()
+    X, y = data.data, data.target
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+
+    scaler = StandardScaler().fit(X_train)
+    X_train_s = scaler.transform(X_train)
+    X_test_s = scaler.transform(X_test)
+
+    activation = "softmax"
+    weight_scheme = "normal"
+    model = GFDLClassifier(hidden_layer_sizes=[800] * 10,
+            activation=activation,
+            weight_scheme=weight_scheme,
+            seed=0,
+            reg_alpha=reg_alpha,
+            rtol=rtol)
+    model.fit(X_train_s, y_train)
+
+    y_hat_cur = model.predict(X_test_s)
+    y_hat_cur_proba = model.predict_proba(X_test_s)
+
+    acc_cur = accuracy_score(y_test, y_hat_cur)
+    roc_cur = roc_auc_score(y_test, y_hat_cur_proba, multi_class="ovo")
+
+    np.testing.assert_allclose(acc_cur, expected_acc)
+    np.testing.assert_allclose(roc_cur, expected_roc)

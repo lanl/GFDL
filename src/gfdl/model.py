@@ -209,6 +209,12 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         conditioning during Ridge regression. When set to zero or `None`,
         model uses direct solve using Moore-Penrose Pseudo-Inverse.
 
+    rtol : float, default=None
+      Cutoff for small singular values for the Moore-Penrose
+      pseudo-inverse. Only applies when ``reg_alpha=None``.
+      When ``rtol=None``, the array API standard default for
+      ``pinv`` is used.
+
     Attributes
     ----------
     n_features_in_ : int
@@ -253,14 +259,16 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         weight_scheme: str = "uniform",
         direct_links: bool = True,
         seed: int = None,
-        reg_alpha: float = None
+        reg_alpha: float = None,
+        rtol: float = None
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
                        weight_scheme=weight_scheme,
                        direct_links=direct_links,
                        seed=seed,
-                       reg_alpha=reg_alpha)
+                       reg_alpha=reg_alpha,
+                       rtol=rtol)
 
     def fit(self, X, y):
         """
