@@ -6,11 +6,18 @@
 Gradient Free Deep Learning 
 ===========================
 
-Gradient Free Deep Learning (GFDL) is a Python package for ...
+Gradient Free Deep Learning (GFDL) is a Python package for performing
+machine learning classification and regression tasks using neural networks
+that do not require backpropagation.
 
-It provides:
+It specifically provides:
 
-- A scikit-learn compatible estimator (:class:`gfdl.model.GFDLClassifier`)
+- A scikit-learn compatible estimator for classification
+  (:class:`gfdl.model.GFDLClassifier`)
+- A scikit-learn compatible estimator for regression
+  (:class:`gfdl.model.GFDLRegressor`)
+- A scikit-learn compatible estimator for ensemble classification
+  (:class:`gfdl.model.EnsembleGFDLClassifier`)
 - A small set of neural-network style activations (:mod:`gfdl.activations`)
 
 Getting started
@@ -36,15 +43,8 @@ Quick example
    clf = GFDLClassifier()
    clf.fit(X, y)
 
-
-.. toctree::
-   :hidden:
-   :maxdepth: 2
-
-   api/index
-
 Process for Making a Release
-============================
+----------------------------
 
 #. Start preparing the PR that drafts the release notes. This involves manually
    scanning all of the merged and appropriately milestoned PRs with an
@@ -97,3 +97,11 @@ Process for Making a Release
    to draft the release notes skeleton for the next bug fix release on that
    branch, and bump to the next ``y`` in the version number (``0.x.y.dev0``)
    in ``pyproject.toml``.
+
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+
+   api/index
+

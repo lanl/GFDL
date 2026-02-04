@@ -91,7 +91,14 @@ def test_sklearn_api_conformance(estimator, check):
     check(estimator)
 
 
-def test_regression_boston():
+@pytest.mark.parametrize("reg_alpha, expected", [
+    (0.1, 0.78550376),
+    # NOTE: for Moore-Penrose, a large singular value
+    # cutoff (rtol) is required to achieve reasonable R2 with
+    # the Boston Housing dataset
+    (None, 0.73452466),
+])
+def test_regression_boston(reg_alpha, expected):
     # real-world data test with multi-layer RVFL
     boston = fetch_openml(name="boston", version=1, as_frame=False)
     X, y = boston.data, boston.target.astype(float)
@@ -109,7 +116,8 @@ def test_regression_boston():
             weight_scheme="uniform",
             direct_links=1,
             seed=0,
-            reg_alpha=0.1,
+            reg_alpha=reg_alpha,
+            rtol=1e-3,  # has no effect for `Ridge`
         )
     model.fit(X_train_s, y_train)
     y_pred = model.predict(X_test_s)
@@ -117,4 +125,4 @@ def test_regression_boston():
     # 0.8733907 here; multi-layer GFDL with above params is a bit
     # worse, but certainly better than random chance:
     actual = r2_score(y_test, y_pred)
-    np.testing.assert_allclose(actual, 0.78550376)
+    np.testing.assert_allclose(actual, expected)
