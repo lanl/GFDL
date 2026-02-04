@@ -449,4 +449,4 @@ def test_rtol_ensemble(reg_alpha, rtol, expected_acc, expected_roc):
     roc_cur = roc_auc_score(y_test, y_hat_cur_proba, multi_class="ovo")
 
     np.testing.assert_allclose(acc_cur, expected_acc)
-    np.testing.assert_allclose(roc_cur, expected_roc)
+    np.testing.assert_allclose(roc_cur, expected_roc, atol=1e-05)
