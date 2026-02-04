@@ -344,14 +344,16 @@ class EnsembleGFDL(GFDL):
         activation: str = "identity",
         weight_scheme: str = "uniform",
         seed: int = None,
-        reg_alpha: float = None
+        reg_alpha: float = None,
+        rtol: float | None = None,
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                          activation=activation,
                          weight_scheme=weight_scheme,
                          direct_links=True,
                          seed=seed,
-                         reg_alpha=reg_alpha)
+                         reg_alpha=reg_alpha,
+                         rtol=rtol)
 
     def fit(self, X, Y):
 
@@ -404,7 +406,7 @@ class EnsembleGFDL(GFDL):
             # If reg_alpha is None, use direct solve using
             # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
             if self.reg_alpha is None:
-                coeff = np.linalg.pinv(D) @ Y
+                coeff = np.linalg.pinv(D, rtol=self.rtol) @ Y
             else:
                 ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
                 ridge.fit(D, Y)
@@ -503,6 +505,12 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
       multiplies the L2 term of `sklearn` `Ridge`, controlling the
       regularization strength. `reg_alpha` must be a non-negative float.
 
+    rtol : float, default=None
+      Cutoff for small singular values for the Moore-Penrose
+      pseudo-inverse. Only applies when ``reg_alpha=None``.
+      When ``rtol=None``, the array API standard default for
+      ``pinv`` is used.
+
     voting : str, default=`"soft"`
       Whether to use soft or hard voting in the ensemble.
 
@@ -535,6 +543,7 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         weight_scheme: str = "uniform",
         seed: int = None,
         reg_alpha: float = None,
+        rtol: float = None,
         voting: str = "soft",    # "soft" or "hard"
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
@@ -542,6 +551,7 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
                          weight_scheme=weight_scheme,
                          seed=seed,
                          reg_alpha=reg_alpha,
+                         rtol=rtol
                          )
         self.voting = voting
 
