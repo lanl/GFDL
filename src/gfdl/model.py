@@ -169,7 +169,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
@@ -480,7 +481,8 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
@@ -707,7 +709,8 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 

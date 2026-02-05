@@ -85,7 +85,7 @@ def range(d, h, **kwargs):
     Returns
     -------
     ndarray or scalar
-        Drawn samples from the discrete uniform distribution ``[0, d*h)``.
+        Set the weights to normalized np.arange over the range ``[0, d*h)``.
 
     Other Parameters
     ----------------
