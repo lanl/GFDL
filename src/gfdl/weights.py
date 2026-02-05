@@ -29,7 +29,8 @@ def zeros(d, h, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Needed for keyword arguments and compatibility with other weight function apis
+        but not relevant for this function.
     """
     return np.zeros((h, d))
 
@@ -58,7 +59,8 @@ def uniform(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Other keyword arguments. Placeholder for exposing distribution
+        parameters later on.
 
     Notes
     -----
@@ -71,7 +73,7 @@ def uniform(d, h, *, rng, **kwargs):
 
 def range(d, h, **kwargs):
     """
-    The weight function returning samples drawn from discrete uniform distribution.
+    The weight function setting weights to a normalized np.arange.
 
     Parameters
     ----------
@@ -90,7 +92,8 @@ def range(d, h, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Needed for keyword arguments and compatibility with other weight function apis
+        but not relevant for this function.
     """
     s = np.arange(d * h)
     s = np.subtract(s, np.mean(s))
@@ -124,7 +127,8 @@ def he_uniform(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Needed for keyword arguments and compatibility with other weight function apis
+        but not relevant for this function.
 
     Notes
     -----
@@ -169,7 +173,8 @@ def lecun_uniform(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Needed for keyword arguments and compatibility with other weight function apis
+        but not relevant for this function.
 
     Notes
     -----
@@ -206,7 +211,8 @@ def glorot_uniform(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Needed for keyword arguments and compatibility with other weight function apis
+        but not relevant for this function.
 
     Notes
     -----
@@ -243,7 +249,8 @@ def normal(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Other keyword arguments. Placeholder for exposing distribution
+        parameters later on.
     """
     return rng.normal(0, 1, (h, d))
 
@@ -273,7 +280,8 @@ def he_normal(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Needed for keyword arguments and compatibility with other weight function apis
+        but not relevant for this function.
 
     Notes
     -----
@@ -310,7 +318,8 @@ def lecun_normal(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Needed for keyword arguments and compatibility with other weight function apis
+        but not relevant for this function.
 
     Notes
     -----
@@ -347,7 +356,8 @@ def glorot_normal(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments.
+        Needed for keyword arguments and compatibility with other weight function apis
+        but not relevant for this function.
 
     Notes
     -----
