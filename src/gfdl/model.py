@@ -233,7 +233,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         bias term corresponding to layer i.
 
     coeff_ : ndarray of shape (n_features_out, n_outputs)
-        Output weight matrix learned by linear regression.
+        Output weight matrix learned by fit method.
 
     See Also
     --------
@@ -771,7 +771,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         bias term corresponding to layer i.
 
     coeff_ : ndarray of shape (n_features_out, n_outputs)
-        Output weight matrix learned by linear regression.
+        Output weight matrix learned by the fit method.
 
     See Also
     --------
