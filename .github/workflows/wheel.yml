@@ -2,9 +2,12 @@ name: Wheel Test
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - maintenance/**
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - maintenance/**
 
 jobs:
   test:
