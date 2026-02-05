@@ -1,5 +1,5 @@
 """
-Activations functions for Gradient Free Deep Learning estimators.
+Activation functions for Gradient Free Deep Learning estimators.
 """
 
 import numpy as np
