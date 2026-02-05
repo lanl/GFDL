@@ -61,12 +61,6 @@ def uniform(d, h, *, rng, **kwargs):
     **kwargs : dict
         Other keyword arguments. Placeholder for exposing distribution
         parameters later on.
-
-    Notes
-    -----
-    uniform() had to be split out for pickle/serialization
-    for conformance with the sklearn estimator API:
-    https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
     """
     return rng.uniform(0, 1, (h, d))
 
