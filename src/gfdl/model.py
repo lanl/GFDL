@@ -136,7 +136,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
     Parameters
     ----------
-    hidden_layer_sizes : array-like of shape(n_layers,), default=(100,)
+    hidden_layer_sizes : array-like of shape (n_layers,), default=(100,)
         The ith element represents the number of neurons in the ith
         hidden layer.
 
@@ -676,7 +676,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
     Parameters
     ----------
-    hidden_layer_sizes : array-like of shape(n_layers,), default=(100,)
+    hidden_layer_sizes : array-like of shape (n_layers,), default=(100,)
         The ith element represents the number of neurons in the ith
         hidden layer.
 
