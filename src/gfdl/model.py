@@ -136,7 +136,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
     Parameters
     ----------
-    hidden_layer_sizes : array-like of shape(n_layers,), default=(100,)
+    hidden_layer_sizes : array-like of shape (n_layers,), default=(100,)
         The ith element represents the number of neurons in the ith
         hidden layer.
 
@@ -169,7 +169,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
@@ -232,7 +233,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         bias term corresponding to layer i.
 
     coeff_ : ndarray of shape (n_features_out, n_outputs)
-        Output weight matrix learned by linear regression.
+        Output weight matrix learned by fit method.
 
     See Also
     --------
@@ -480,7 +481,8 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
@@ -674,7 +676,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
     Parameters
     ----------
-    hidden_layer_sizes : array-like of shape(n_layers,), default=(100,)
+    hidden_layer_sizes : array-like of shape (n_layers,), default=(100,)
         The ith element represents the number of neurons in the ith
         hidden layer.
 
@@ -707,7 +709,8 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
@@ -768,7 +771,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         bias term corresponding to layer i.
 
     coeff_ : ndarray of shape (n_features_out, n_outputs)
-        Output weight matrix learned by linear regression.
+        Output weight matrix learned by the fit method.
 
     See Also
     --------
