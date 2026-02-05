@@ -30,11 +30,6 @@ jobs:
       shell: bash
       run: |
         python -m pip install dist/gfdl*.whl
-        # test deps need to be manually installed
-        # because of annoying version conflicts
-        # with grafo?
-        python -m pip install --no-deps "permetrics>=2.0.0" "mealpy>=3.0.2"
-        python -m pip install --no-deps graforvfl
         python -m pip install pandas ucimlrepo
         cd $RUNNER_TEMP
         python -m pytest --pyargs gfdl --cov=gfdl --cov-report=term-missing
