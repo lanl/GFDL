@@ -77,7 +77,7 @@ def identity(z):
     Returns
     -------
     numpy.ndarray
-        The output array same as input values.
+        The input array is returned unchanged.
     """
     return z
 
