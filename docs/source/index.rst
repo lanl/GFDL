@@ -43,9 +43,9 @@ Quick example
    clf = GFDLClassifier()
    clf.fit(X, y)
 
-
 .. toctree::
    :hidden:
    :maxdepth: 2
 
    api/index
+   dev
