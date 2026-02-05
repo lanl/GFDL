@@ -259,7 +259,7 @@ def he_normal(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the He normal distribution with
-        mean ``0`` and standard deviation ``sqrt(2/d)``.
+        mean ``0`` and standard deviation ``sqrt(2/h)``.
 
     Other Parameters
     ----------------
@@ -296,7 +296,7 @@ def lecun_normal(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the Lecun normal distribution
-        with mean ``0`` and standard deviation ``1/sqrt(h)``.
+        with mean ``0`` and standard deviation ``sqrt(1/h)``.
 
     Other Parameters
     ----------------
