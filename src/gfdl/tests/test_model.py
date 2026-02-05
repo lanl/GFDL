@@ -810,6 +810,10 @@ def test_batch_partition_invariance_ensemble():
         assert_allclose(pf1_c, pf2_c, rtol=4e-8, atol=2e-10)
 
 
+@pytest.mark.xfail(
+    reason="partial_fit diverges from fit for ill-conditioned design matrices",
+    strict=True,
+)
 def test_partial_fit_ill_conditioned():
     # For direct_links=True and certain activations and weight combinations,
     # the design matrix becomes rank-deficient and the exact
@@ -846,10 +850,13 @@ def test_partial_fit_ill_conditioned():
 
     # partial_fit() is expected to diverge from fit() given
     # these params
-    with pytest.raises(AssertionError):
-        assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-3, atol=1e-3)
+    assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-3, atol=1e-3)
 
 
+@pytest.mark.xfail(
+    reason="partial_fit diverges from fit for ill-conditioned design matrices",
+    strict=True,
+)
 def test_partial_fit_ill_conditioned_ensemble():
     # For direct_links=True and certain activations and weight combinations,
     # the design matrix becomes rank-deficient and the exact
@@ -883,8 +890,6 @@ def test_partial_fit_ill_conditioned_ensemble():
         else:
             pf_model.partial_fit(X[start:end], y[start:end])
 
-    # partial_fit() is expected to diverge from fit() given
-    # these params
-    with pytest.raises(AssertionError):
-        for ff_c, pf_c in zip(ff_model.coeffs_, pf_model.coeffs_, strict=False):
-            assert_allclose(ff_c, pf_c, rtol=1e-2, atol=1e-2)
+    # this should fail
+    for ff_c, pf_c in zip(ff_model.coeffs_, pf_model.coeffs_, strict=False):
+        assert_allclose(ff_c, pf_c, rtol=1e-2, atol=1e-2)
