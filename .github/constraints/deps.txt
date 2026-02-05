@@ -2,3 +2,7 @@ numpy
 scipy>=1.7.1
 scikit-learn>=1.2.1
 matplotlib>=3.7.5
+numpydoc
+sphinx_copybutton
+sphinx_design
+pydata_sphinx_theme
