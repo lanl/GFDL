@@ -25,7 +25,6 @@ jobs:
         python -m pip install -v ".[test]"
         python -m pip install ruff==0.13.1
         python -m pip install -r .github/constraints/deps.txt
-        python -m pip install --no-deps graforvfl 
     - name: lint
       run: |
         ruff check
