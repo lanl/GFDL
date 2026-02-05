@@ -27,6 +27,11 @@ classifiers = [
 dependencies = ["numpy>=2.0.0",
                 "scikit-learn>=1.2.1"]
 
+[project.urls]
+source = "https://github.com/lanl/GFDL"
+download = "https://github.com/lanl/GFDL/releases"
+tracker = "https://github.com/lanl/GFDL/issues"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
