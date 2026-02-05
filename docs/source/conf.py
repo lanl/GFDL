@@ -53,7 +53,7 @@ import os
 from pathlib import Path
 
 GITHUB_REPO_URL = "https://github.com/lanl/GFDL"   
-GITHUB_REF = "treddy_conform_with_numpydoc" 
+GITHUB_REF = "main" 
 
 # conf.py is docs/source/conf.py -> repo root is usually parents[2]
 REPO_ROOT = Path(__file__).resolve().parents[2]
