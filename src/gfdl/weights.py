@@ -126,16 +126,7 @@ def he_uniform(d, h, *, rng, **kwargs):
 
     Notes
     -----
-    This implementation deviates from the standard expression where
-    the number of input features (d) are used to compute the limit.
     https://faroit.com/keras-docs/2.0.0/initializers/#he_uniform
-    However, using the standard form returned a different
-    answer from GrafoRVFL, which uses the output size i.e. hidden
-    layer size instead (from ChatGPT). Needs further exploration
-    of why they deviate from the standard form.
-    If we choose to use the standard form, then our tests cannot be
-    used to compare against GrafoRVFL as the results could be order
-    one difference or higher.
     """
 
     limit = np.sqrt(6 / h)
@@ -172,7 +163,6 @@ def lecun_uniform(d, h, *, rng, **kwargs):
 
     Notes
     -----
-    Same comment as "he_uniform"
     https://faroit.com/keras-docs/2.0.0/initializers/#lecun_uniform
     """
 
@@ -279,7 +269,6 @@ def he_normal(d, h, *, rng, **kwargs):
 
     Notes
     -----
-    Same comment as "he_uniform"
     https://faroit.com/keras-docs/2.0.0/initializers/#he_normal
     """
 
@@ -317,7 +306,6 @@ def lecun_normal(d, h, *, rng, **kwargs):
 
     Notes
     -----
-    Same comment as "he_uniform"
     https://www.tensorflow.org/api_docs/python/tf/keras/initializers/LecunNormal
     """
 
