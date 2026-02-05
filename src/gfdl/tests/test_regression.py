@@ -8,11 +8,6 @@ from sklearn.utils.estimator_checks import parametrize_with_checks
 
 from gfdl.model import GFDLRegressor
 
-activations = ["relu", "tanh", "sigmoid", "identity", "softmax", "softmin",
-             "log_sigmoid", "log_softmax"]
-weights = ["uniform", "normal", "he_uniform", "lecun_uniform",
-         "glorot_uniform", "he_normal", "lecun_normal", "glorot_normal"]
-
 
 @pytest.mark.parametrize("""n_samples,
                             n_targets,
@@ -22,17 +17,50 @@ weights = ["uniform", "normal", "he_uniform", "lecun_uniform",
                             reg_alpha,
                             exp_preds_shape,
                             exp_preds_median,
-                            exp_preds_min""", [
+                            exp_preds_min,
+                            exp_preds_r2""", [
     # expected values are from the graforvfl library
     (100, 10, (100,), "relu", "glorot_normal", 10, (25, 10),
-     -29.31478018, -490.5751822),
-    (100, 10, (100,), "tanh", "uniform", 100, (25, 10),
-     -34.613165002, -327.82362807),
+     -29.31478018, -490.57518221, 0.97537085),
+    (100, 10, (100,), "tanh", "uniform", 1, (25, 10),
+     -43.03897314, -504.32794352, 0.98411997),
+    (100, 10, (100,), "log_softmax", "uniform", 1, (25, 10),
+      -30.56871963218171, -558.1388909597706, 0.9999532782125536),
+    (100, 10, (100,), "log_sigmoid", "normal", 10, (25, 10),
+      -19.5976250350991, -574.1699708675857, 0.9853855947182326),
+    (100, 10, (1000,), "softmin", "he_uniform", 1, (25, 10),
+     -57.91870287977487, -589.6707200160679, 0.9656730623177637),
+    (100, 10, (1000,), "softmax", "lecun_uniform", 10, (25, 10),
+     -51.938696542946786, -513.4094105001416, 0.9589931777194366),
+    (100, 100, (100,), "sigmoid", "glorot_uniform", 1, (25, 100),
+     -46.92889730988215, -1585.2331437646524, 0.6496204322668526),
+    (100, 100, (100,), "tanh", "he_normal", 10, (25, 100),
+     -5.531248709518545, -1131.5021652659007, 0.6018381457540279),
+    (100, 100, (1000,), "relu", "lecun_normal", 1, (25, 100),
+     -24.857674257413233, -1241.941403822942, 0.5954067650339964),
+    (100, 100, (1000,), "identity", "glorot_normal", 10, (25, 100),
+     -49.66037744636776, -1418.0996396366454, 0.6387637880009253),
+    (1000, 10, (100,), "log_softmax", "glorot_normal", 1, (250, 10),
+     -2.157983014856103, -821.8910528092026, 0.999999671320564),
+    (1000, 10, (100,), "log_sigmoid", "lecun_normal", 10, (250, 10),
+     -2.25281191108881, -813.3197346939389, 0.9998208055604957),
+    (1000, 10, (1000,), "softmin", "he_normal", 1, (250, 10),
+     -2.932635323616438, -819.9889270165279, 0.9999535335431835),
+    (1000, 10, (1000,), "softmax", "glorot_uniform", 10, (250, 10),
+     -3.27895924524588, -809.0526184106433, 0.9996980844468629),
+    (1000, 100, (100,), "sigmoid", "lecun_uniform", 1, (250, 100),
+     40.193814730616296, -2003.2760146757932, 0.9999864051131802),
+    (1000, 100, (100,), "tanh", "he_normal", 10, (250, 100),
+     38.349789631939906, -1968.7361166078529, 0.9984649082549426),
+    (1000, 100, (1000,), "relu", "normal", 1, (250, 100),
+     47.91240910167704, -2194.259205351918, 0.8620693547752554),
+    (1000, 100, (1000,), "identity", "uniform", 10, (250, 100),
+     39.788475103832646, -2004.3219743138504, 0.9999999882159872)
 ])
 def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
                                   activation, weight_scheme, reg_alpha,
                                   exp_preds_shape, exp_preds_median,
-                                  exp_preds_min):
+                                  exp_preds_min, exp_preds_r2):
     N, d = n_samples, n_targets
     RNG = 42
     X, y = make_regression(n_samples=N,
@@ -65,9 +93,11 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
     actual_preds_shape = actual_preds.shape
     actual_preds_median = np.median(actual_preds)
     actual_preds_min = actual_preds.min()
+    actual_preds_r2 = r2_score(y_test, actual_preds)
     np.testing.assert_allclose(actual_preds_shape, exp_preds_shape)
     np.testing.assert_allclose(actual_preds_median, exp_preds_median)
     np.testing.assert_allclose(actual_preds_min, exp_preds_min)
+    np.testing.assert_allclose(actual_preds_r2, exp_preds_r2)
 
 
 @parametrize_with_checks([GFDLRegressor()])
