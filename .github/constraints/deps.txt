@@ -1,6 +1,7 @@
-numpy
-scipy>=1.7.1
-scikit-learn>=1.2.1
+numpy>=2.0.0
+scipy>=1.13.0
+scikit-learn>=1.5.0
+packaging>=24.0
 matplotlib>=3.7.5
 numpydoc
 sphinx_copybutton
