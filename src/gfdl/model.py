@@ -824,8 +824,7 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
 
     def partial_fit(self, X, y, classes=None):
         """
-        Train the ensemble of connected RVFL networks on the batched
-        training set (X, y).
+        Train the ensemble of connected RVFL networks on the batched training set.
 
         Parameters
         ----------
