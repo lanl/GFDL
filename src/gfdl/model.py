@@ -403,16 +403,17 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         super().fit(X, Y)
         return self
 
-    def partial_fit(self, X, Y, classes=None):
-        """Update the model with a subset of the given data.
+    def partial_fit(self, X, y, classes=None):
+        """
+        Build a gradient-free neural network from the batched training set (X, y).
 
         Parameters
         ----------
-        X : {array-like, sparse matrix} of shape (n_samples, n_features)
-            The input data.
 
-        y : array-like of shape (n_samples,)
-            The target values.
+        X : array-like of shape (n_samples, n_features)
+          The batched training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The batched target values (class labels).
 
         classes : array of shape (n_classes,), default=None
             Classes across all calls to partial_fit.
@@ -423,11 +424,11 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
         Returns
         -------
-        self : object
-            Returns the partially trained gradient free neural network.
+        object
+            The partially fitted estimator.
         """
         # shape: (n_samples, n_features)
-        X, Y = validate_data(self, X, Y, reset=not hasattr(self, "n_features_in_"))
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
         Y = column_or_1d(Y, warn=True)
         check_classification_targets(Y)
 
@@ -822,25 +823,26 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         super().fit(X, Y)
         return self
 
-    def partial_fit(self, X, Y, classes=None):
+    def partial_fit(self, X, y, classes=None):
         """
-        Train the ensemble of connected RVFL networks on the training set (X, y).
+        Train the ensemble of connected RVFL networks on the batched
+        training set (X, y).
 
         Parameters
         ----------
 
         X : array-like of shape (n_samples, n_features)
-          The training input samples.
+          The batched training input samples.
         y : array-like of shape (n_samples,) or (n_samples, n_outputs)
-          The target values.
+          The batched target values.
 
         Returns
         -------
         object
-          The fitted estimator.
+          The partially fitted estimator.
         """
         # shape: (n_samples, n_features)
-        X, Y = validate_data(self, X, Y, reset=not hasattr(self, "n_features_in_"))
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
         Y = column_or_1d(Y, warn=True)
         check_classification_targets(Y)
 
@@ -1098,26 +1100,27 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         return self
 
     def partial_fit(self, X, y):
-        """Update the model with a subset of the given data.
+        """
+        Train the gradient-free neural network on the batched training set (X, y).
 
         Parameters
         ----------
-        X : {array-like, sparse matrix} of shape (n_samples, n_features)
-            The input data.
 
-        y : array-like of shape (n_samples,)
-            The target values.
+        X : array-like of shape (n_samples, n_features)
+          The batched training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The batched target values.
 
         Returns
         -------
-        self : object
-            Returns the partially trained gradient free neural network.
+        object
+            Returns the partially fitted estimator.
         """
         # shape: (n_samples, n_features)
-        X, y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
-        if y.ndim == 1:
-            y = y.reshape(-1, 1)
-        super().partial_fit(X, y)
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
+        if Y.ndim == 1:
+            Y = Y.reshape(-1, 1)
+        super().partial_fit(X, Y)
         return self
 
     def predict(self, X):
