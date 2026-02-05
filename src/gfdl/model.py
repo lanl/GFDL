@@ -414,7 +414,6 @@ class GFDLClassifier(ClassifierMixin, GFDL):
           The batched training input samples.
         y : array-like of shape (n_samples,) or (n_samples, n_outputs)
           The batched target values (class labels).
-
         classes : array of shape (n_classes,), default=None
             Classes across all calls to partial_fit.
             Can be obtained via `np.unique(y_all)`, where y_all is the
@@ -835,6 +834,12 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
           The batched training input samples.
         y : array-like of shape (n_samples,) or (n_samples, n_outputs)
           The batched target values.
+        classes : array of shape (n_classes,), default=None
+            Classes across all calls to partial_fit.
+            Can be obtained via `np.unique(y_all)`, where y_all is the
+            target vector of the entire dataset.
+            This argument is required for the first call to partial_fit
+            and can be omitted in the subsequent calls.
 
         Returns
         -------
