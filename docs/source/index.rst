@@ -49,5 +49,5 @@ Quick example
    :maxdepth: 2
 
    api/index
+   release
    dev
-   release 

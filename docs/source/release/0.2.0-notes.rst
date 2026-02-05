@@ -1,0 +1,59 @@
+==========================
+GFDL 0.2.0 Release Notes
+==========================
+
+.. note:: GFDL 0.2.0 is not released yet!
+
+.. contents::
+
+Gradient free deep learning (GFDL) 0.2.0 is the culmination of X
+months of hard work. Our development attention will now shift to
+bug-fix releases on the 0.2.x branch, and on adding new features
+on the main branch.
+
+This release requires Python 3.12-3.14.
+
+
+**************************
+Highlights of this release
+**************************
+
+
+
+************
+New features
+************
+
+
+``gfdl.model`` improvements
+============================
+
+*******************
+Deprecated features
+*******************
+
+******************************
+Backwards incompatible changes
+******************************
+
+*************
+Other changes
+*************
+
+
+*******
+Authors
+*******
+
+
+
+************************
+Issues closed for 0.2.0
+************************
+
+
+************************
+Pull requests for 0.2.0
+************************
+
+
