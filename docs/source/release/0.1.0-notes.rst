@@ -1,0 +1,108 @@
+==========================
+GFDL 0.1.0 Release Notes
+==========================
+
+.. contents::
+
+Gradient free deep learning (GFDL) 0.1.0 is the culmination of 6
+months of hard work. This first release contains three new estimators.
+Our development attention will now shift to bug-fix releases on the
+0.1.x branch, and on adding new features on the main branch.
+
+This release requires Python 3.12-3.14.
+
+
+**************************
+Highlights of this release
+**************************
+
+* The new :class:`~gfdl.model.GFDLClassifier` is an estimator offering single and
+  multi-layer random vector functional link (RVFL) and extreme learning
+  machine (ELM) gradient-free neural networks. A regression equivalent,
+  :class:`~gfdl.model.GFDLRegressor` has also been added.
+* The new :class:`~gfdl.model.EnsembleGFDLClassifier` offers a connected ensemble
+  of estimators for multi-layer RVFLs that contribute to model output via
+  soft or hard voting.
+
+
+************
+New features
+************
+
+
+``gfdl.model`` improvements
+============================
+* Three new estimators that include single and multi layer extreme learning
+  machines (ELMs) and random vector functional link (RVFL) networks:
+  :class:`~gfdl.model.GFDLClassifier`, :class:`~gfdl.model.GFDLRegressor`, and
+  :class:`~gfdl.model.EnsembleGFDLClassifier`.
+
+
+
+*******
+Authors
+*******
+* Name (commits)
+* Navamita Ray (138)
+* Tyler Reddy (149) +
+* Emma Viani (66) +
+
+    A total of 3 people contributed to this release.
+    People with a "+" by their names contributed a patch for the first time.
+    This list of names is automatically generated, and may not be fully complete.
+
+
+************************
+Issues closed for 0.1.0
+************************
+
+* `#11 <https://github.com/lanl/GFDL/issues/11>`__: MAINT, BLD, DOC: project/estimator renaming
+* `#12 <https://github.com/lanl/GFDL/issues/12>`__: BUG, ENH: Discrepancy between GrafoRVFL and RVFLRegressor for...
+* `#20 <https://github.com/lanl/GFDL/issues/20>`__: DOC: landing page estimator list
+* `#21 <https://github.com/lanl/GFDL/issues/21>`__: DOC: landing page example -- fix the seed
+* `#22 <https://github.com/lanl/GFDL/issues/22>`__: DOC: ``range`` description improvement
+* `#23 <https://github.com/lanl/GFDL/issues/23>`__: DOC: activations module docstring
+* `#24 <https://github.com/lanl/GFDL/issues/24>`__: DOC: identity activation function return value description
+* `#25 <https://github.com/lanl/GFDL/issues/25>`__: DOC: ``coeff_`` estimator attribution clarification
+* `#26 <https://github.com/lanl/GFDL/issues/26>`__: DOC, CI: lint weights.py with ``numpydoc`` in the CI
+* `#27 <https://github.com/lanl/GFDL/issues/27>`__: DOC: missing space in hidden_layer_sizes parameter
+* `#28 <https://github.com/lanl/GFDL/issues/28>`__: DOC: several weights function have unused kwargs
+* `#29 <https://github.com/lanl/GFDL/issues/29>`__: DOC: remove justification(s) for weight function abstractions?
+* `#30 <https://github.com/lanl/GFDL/issues/30>`__: DOC: ChatGPT ref in docs
+* `#31 <https://github.com/lanl/GFDL/issues/31>`__: DOC: He normal distribution return doc
+* `#34 <https://github.com/lanl/GFDL/issues/34>`__: DOC, MAINT: conf.py ``GITHUB_REF`` likely not correct
+* `#38 <https://github.com/lanl/GFDL/issues/38>`__: MAINT: CPython (and maybe other dep) runtime version checks
+* `#43 <https://github.com/lanl/GFDL/issues/43>`__: DOC, MAINT: adding repo source URL to pyproject.toml
+
+************************
+Pull requests for 0.1.0
+************************
+
+* `#2 <https://github.com/lanl/GFDL/pull/2>`__: CI, BLD: support wheel builds, test in CI
+* `#3 <https://github.com/lanl/GFDL/pull/3>`__: DOC: start adding numpydoc docstrings
+* `#5 <https://github.com/lanl/GFDL/pull/5>`__: MAINT, CI: trove classifiers for PyPI; Windows testing
+* `#6 <https://github.com/lanl/GFDL/pull/6>`__: MAINT: remove scripts from lib project
+* `#7 <https://github.com/lanl/GFDL/pull/7>`__: DOC: README updates
+* `#8 <https://github.com/lanl/GFDL/pull/8>`__: DOC: add BSD 3-clause license
+* `#9 <https://github.com/lanl/GFDL/pull/9>`__: WIP, MAINT: remove dependence on graforvfl
+* `#10 <https://github.com/lanl/GFDL/pull/10>`__: MAINT: module top cleanups
+* `#14 <https://github.com/lanl/GFDL/pull/14>`__: CI, TST : Increase tolerance for Grafo checks.
+* `#15 <https://github.com/lanl/GFDL/pull/15>`__: MNT: renaming RVFL to GFDL for consistency in repo
+* `#16 <https://github.com/lanl/GFDL/pull/16>`__: CI: test wheels on Windows
+* `#17 <https://github.com/lanl/GFDL/pull/17>`__: DOC, MAINT: tools script for release notes lists
+* `#18 <https://github.com/lanl/GFDL/pull/18>`__: DOC, MAINT: tools script for author list
+* `#36 <https://github.com/lanl/GFDL/pull/36>`__: MAINT, REL: set version to ``0.1.0.dev0``
+* `#39 <https://github.com/lanl/GFDL/pull/39>`__: DOC: document the process for releasing
+* `#40 <https://github.com/lanl/GFDL/pull/40>`__: ENH: control rtol for regressor
+* `#41 <https://github.com/lanl/GFDL/pull/41>`__: CI, DOC: lint ``weights.py`` in CI
+* `#42 <https://github.com/lanl/GFDL/pull/42>`__: DOC: landing page improvements
+* `#44 <https://github.com/lanl/GFDL/pull/44>`__: ENH, TST: Add rtol to classifier and a test.
+* `#45 <https://github.com/lanl/GFDL/pull/45>`__: ENH, TST: Add rtol for ensemble estimators and a test.
+* `#46 <https://github.com/lanl/GFDL/pull/46>`__: DOC, MAINT: repo source to pyproject.toml
+* `#48 <https://github.com/lanl/GFDL/pull/48>`__: DOC: Update branch name for source linking
+* `#49 <https://github.com/lanl/GFDL/pull/49>`__: DOC: Use default rng in landing page example
+* `#50 <https://github.com/lanl/GFDL/pull/50>`__: DOC: Remove plural
+* `#51 <https://github.com/lanl/GFDL/pull/51>`__: CI: run on maintenance branches as well
+* `#52 <https://github.com/lanl/GFDL/pull/52>`__: DOC: Addresses multiple doc related issues
+* `#54 <https://github.com/lanl/GFDL/pull/54>`__: MAINT: runtime min version enforcement
+
