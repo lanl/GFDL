@@ -1,0 +1,27 @@
+==========================
+GFDL 0.1.1 Release Notes
+==========================
+
+.. contents::
+
+GFDL 0.1.1 is a bug-fix release with no new features compared
+to 0.1.0.
+
+
+
+*******
+Authors
+*******
+* Name (commits)
+
+
+************************
+Issues closed for 0.1.1
+************************
+
+
+
+
+************************
+Pull requests for 0.1.1
+************************
