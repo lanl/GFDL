@@ -345,7 +345,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         return out
 
 
-class EnsembleGFDL(GFDL):
+class EnsembleGFDL(BaseEstimator):
     """Base class for ensemble GFDL model for classification and regression."""
     def __init__(
         self,
@@ -356,13 +356,15 @@ class EnsembleGFDL(GFDL):
         reg_alpha: float = None,
         rtol: float | None = None,
     ):
-        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
-                         activation=activation,
-                         weight_scheme=weight_scheme,
-                         direct_links=True,
-                         seed=seed,
-                         reg_alpha=reg_alpha,
-                         rtol=rtol)
+        self.hidden_layer_sizes = hidden_layer_sizes
+        self.activation = activation
+        self.weight_scheme = weight_scheme
+        self.seed = seed
+        self.reg_alpha = reg_alpha
+        self.rtol = rtol
+
+    def get_generator(self, seed):
+        return np.random.default_rng(seed)
 
     def fit(self, X, Y):
 
