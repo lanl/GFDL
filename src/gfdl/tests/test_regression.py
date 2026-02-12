@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from sklearn.base import clone
 from sklearn.datasets import fetch_openml, make_regression
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
@@ -140,3 +141,44 @@ def test_regression_boston(reg_alpha, expected):
     # worse, but certainly better than random chance:
     actual = r2_score(y_test, y_pred)
     np.testing.assert_allclose(actual, expected)
+
+
+@pytest.mark.parametrize("hidden_layer_sizes", [(10,), (5, 5)])
+@pytest.mark.parametrize("direct_links", [True, False])
+@pytest.mark.parametrize("activation", activations)
+@pytest.mark.parametrize("weight_scheme", weights[1:])
+@pytest.mark.parametrize("alpha", [None, 0.1, 0.5, 1])
+def test_partial_fit_regressor(
+    hidden_layer_sizes, direct_links, activation, weight_scheme, alpha
+):
+    # Test coefficient equivalence between partial_fit() and fit() as long
+    # as D.T@D is well-conditioned
+
+    # partial_fit is equivalent to accumulating normal equations
+    X, y = make_regression(
+        n_samples=600,
+        n_features=20,
+        n_informative=10,
+        random_state=0,
+    )
+
+    ff_model = GFDLRegressor(
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=direct_links,
+        seed=0,
+        reg_alpha=alpha,
+    )
+    pf_model = clone(ff_model)
+
+    ff_model.fit(X, y)
+
+    batch = 25
+    for start in range(0, len(X), batch):
+        end = min(start + batch, len(X))
+        Xb = X[start:end]
+        yb = y[start:end]
+        pf_model.partial_fit(Xb, yb)
+
+    np.testing.assert_allclose(ff_model.coeff_, pf_model.coeff_, rtol=1e-5, atol=4e-5)

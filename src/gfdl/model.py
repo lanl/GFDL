@@ -13,8 +13,9 @@ from sklearn.base import (
 )
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.utils import column_or_1d
 from sklearn.utils.metaestimators import available_if
-from sklearn.utils.multiclass import unique_labels
+from sklearn.utils.multiclass import check_classification_targets, unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
 
 from gfdl.activations import resolve_activation
@@ -103,6 +104,106 @@ class GFDL(BaseEstimator):
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
             ridge.fit(D, Y)
             self.coeff_ = ridge.coef_.T
+        return self
+
+    def partial_fit(self, X, y):
+        # Moore Penrose Pseudoinverse:
+        # D+ = (D.T @ D)^-1 @ D.T
+        #
+        # Least squares solution:
+        # D+ @ y = (D.T @ D)^-1 @ D.T @ y
+        #
+        # We're persisting the gram (D.T @ D) and moment (D.T @ y) matrices
+        # and updating them by adding the gram and moment matrices of
+        # each consecutive batch.
+        #
+        # Consider the summation representation of matrix multiplication:
+        # (B.T @ B)_ij = sum_k (B.T_ik @ B_kj)
+        #
+        # Now suppose the full design matrix is formed by vertically stacking
+        # two batches, written as [B_1 | B_2]:
+        # [B_1 | B_2].T @ [B_1 | B_2] = B_1.T @ B_1 + B_2.T @ B_2
+        #
+        # It's evident that it is indeed possible to update normal equations
+        # through summation
+
+        if self.reg_alpha is not None and self.reg_alpha < 0.0:
+            raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
+        # Assumption : X, Y have been pre-processed.
+        # X shape: (n_samples, n_features)
+        # Y shape: (n_samples, n_classes-1)
+
+        if not hasattr(self, "W_"):
+            # initialize params only on first call
+            fn = resolve_activation(self.activation)[1]
+            self._activation_fn = fn
+            self._N = X.shape[1]
+            hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+            self._weight_mode = resolve_weight(self.weight_scheme)
+
+            # weights shape: (n_layers,)
+            # biases shape: (n_layers,)
+            self.W_ = []
+            self.b_ = []
+            rng = self.get_generator(self.seed)
+
+            self.W_.append(
+                self._weight_mode(
+                    self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+                    )
+                )
+            self.b_.append(
+                self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
+                .reshape(-1)
+                )
+            for i, layer in enumerate(hidden_layer_sizes[1:]):
+                # (n_hidden, n_features)
+                self.W_.append(
+                    self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,)
+                    )
+                # (n_hidden,)
+                self.b_.append(
+                    self._weight_mode(1, layer, rng=rng,).reshape(-1)
+                    )
+
+        # design matrix shape: (n_samples, sum_hidden+n_features)
+        # or (n_samples, sum_hidden)
+        Hs = []
+        H_prev = X
+        for w, b in zip(self.W_, self.b_, strict=False):
+            Z = H_prev @ w.T + b  # (n_samples, n_hidden)
+            H_prev = self._activation_fn(Z)
+            Hs.append(H_prev)
+
+        # design matrix shape: (n_samples, sum_hidden+n_features)
+        # or (n_samples, sum_hidden)
+        if self.direct_links:
+            Hs.append(X)
+        D = np.hstack(Hs)
+
+        if not hasattr(self, "A"):
+            self.A = np.zeros((D.shape[1], D.shape[1]))
+            self.B = np.zeros((D.shape[1], y.shape[1]))
+
+        self.A += D.T @ D
+        self.B += D.T @ y
+
+        # beta shape: (sum_hidden+n_features, n_classes-1)
+        # or (sum_hidden, n_classes-1)
+
+        # If reg_alpha is None, use direct solve using
+        # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
+
+        if self.reg_alpha is None:
+            if self.rtol is None:
+                self.coeff_ = np.linalg.pinv(self.A) @ self.B
+            else:
+                self.coeff_ = np.linalg.pinv(self.A, rcond=self.rtol) @ self.B
+        else:
+            reg = np.identity(self.A.shape[0]) * self.reg_alpha
+            self.coeff_ = np.linalg.solve(self.A + reg, self.B)
+        if self.coeff_.ndim == 2 and self.coeff_.shape[1] == 1:
+            self.coeff_ = self.coeff_.ravel()
         return self
 
     def predict(self, X):
@@ -302,6 +403,51 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         super().fit(X, Y)
         return self
 
+    def partial_fit(self, X, y, classes=None):
+        """
+        Build a gradient-free neural network from the batched training set (X, y).
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The batched training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The batched target values (class labels).
+        classes : array of shape (n_classes,), default=None
+            Classes across all calls to partial_fit.
+            Can be obtained via `np.unique(y_all)`, where y_all is the
+            target vector of the entire dataset.
+            This argument is required for the first call to partial_fit
+            and can be omitted in the subsequent calls.
+
+        Returns
+        -------
+        object
+            The partially fitted estimator.
+        """
+        # shape: (n_samples, n_features)
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
+        Y = column_or_1d(Y, warn=True)
+        check_classification_targets(Y)
+
+        if not hasattr(self, "classes_"):
+            if classes is None:
+                raise TypeError("Classes must not be None for first partial_fit call")
+            self.classes_ = classes
+            self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+            self.enc_.fit(self.classes_.reshape(-1, 1))
+
+        if not set(unique_labels(Y)) <= set(self.classes_):
+            raise ValueError(
+                f"Expected only labels in classes_ = {list(self.classes_)!r}, "
+                f"but got {unique_labels(Y)!r}."
+            )
+        Y = self.enc_.transform(Y.reshape(-1, 1))
+
+        super().partial_fit(X, Y)
+        return self
+
     def predict(self, X):
         """
         Predict class for X.
@@ -423,6 +569,84 @@ class EnsembleGFDL(BaseEstimator):
                 ridge.fit(D, Y)
                 coeff = ridge.coef_.T
             self.coeffs_.append(coeff)
+
+        return self
+
+    def partial_fit(self, X, Y):
+
+        if self.reg_alpha is not None and self.reg_alpha < 0.0:
+            raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
+
+        if not hasattr(self, "W_"):
+            fn = resolve_activation(self.activation)[1]
+            self._activation_fn = fn
+            self._N = X.shape[1]
+            hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+            self._weight_mode = resolve_weight(self.weight_scheme)
+
+            self.W_ = []
+            self.b_ = []
+            rng = self.get_generator(self.seed)
+
+            self.W_.append(
+                self._weight_mode(
+                    self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+                    )
+                )
+            self.b_.append(
+                self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
+                .reshape(-1)
+                )
+
+            for i, layer in enumerate(hidden_layer_sizes[1:]):
+                # (n_hidden, n_features)
+                self.W_.append(
+                    self._weight_mode(hidden_layer_sizes[i] + self._N, layer, rng=rng)
+                    )
+                # (n_hidden,)
+                self.b_.append(
+                    self._weight_mode(1, layer, rng=rng,).reshape(-1)
+                    )
+
+        self.coeffs_ = []
+        D = X
+
+        if not hasattr(self, "As"):
+            self.As = []
+            self.Bs = []
+
+        for i, (W, b) in enumerate(zip(self.W_, self.b_, strict=False)):
+            Z = D @ W.T + b  # (n_samples, n_hidden_layer_i)
+            H = self._activation_fn(Z)
+            # design matrix shape: (n_samples, n_hidden_layer_i+n_features)
+            # or (n_samples, n_hidden_final)
+            D = np.hstack((H, X))
+
+            if len(self.As) == i:
+                self.As.append(np.zeros((D.shape[1], D.shape[1])))
+                self.Bs.append(np.zeros((D.shape[1], Y.shape[1])))
+
+            self.As[i] += D.T @ D
+            self.Bs[i] += D.T @ Y
+
+            # beta shape: (sum_hidden+n_features, n_classes-1)
+            # or (sum_hidden, n_classes-1)
+
+            # If reg_alpha is None, use direct solve using
+            # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
+
+            if self.reg_alpha is None:
+                if self.rtol is None:
+                    coef_ = np.linalg.pinv(self.As[i]) @ self.Bs[i]
+                else:
+                    coef_ = np.linalg.pinv(self.As[i], rcond=self.rtol) @ self.Bs[i]
+            else:
+                reg = np.identity(self.As[i].shape[0]) * self.reg_alpha
+                coef_ = np.linalg.solve(self.As[i] + reg, self.Bs[i])
+            if coef_.ndim == 2 and coef_.shape[1] == 1:
+                coef_ = coef_.ravel()
+
+            self.coeffs_.append(coef_)
 
         return self
 
@@ -596,6 +820,53 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
 
         # call base fit method
         super().fit(X, Y)
+        return self
+
+    def partial_fit(self, X, y, classes=None):
+        """
+        Train the ensemble of connected RVFL networks on the batched training set.
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The batched training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The batched target values.
+        classes : array of shape (n_classes,), default=None
+            Classes across all calls to partial_fit.
+            Can be obtained via `np.unique(y_all)`, where y_all is the
+            target vector of the entire dataset.
+            This argument is required for the first call to partial_fit
+            and can be omitted in the subsequent calls.
+
+        Returns
+        -------
+        object
+          The partially fitted estimator.
+        """
+        # shape: (n_samples, n_features)
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
+        Y = column_or_1d(Y, warn=True)
+        check_classification_targets(Y)
+
+        if not hasattr(self, "classes_"):
+            if classes is None:
+                raise TypeError("Classes must not be None for first partial_fit call")
+            self.classes_ = classes
+            self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+            self.enc_.fit(self.classes_.reshape(-1, 1))
+
+        if not set(np.unique(Y)) <= set(self.classes_):
+            raise ValueError(
+                f"Expected only labels in classes_ = {list(self.classes_)!r}, "
+                f"but got {unique_labels(Y)!r}."
+            )
+
+        Y = self.enc_.transform(Y.reshape(-1, 1))
+
+        # call base fit method
+        super().partial_fit(X, Y)
         return self
 
     def _check_voting(self):
@@ -830,6 +1101,30 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         """
         X, Y = validate_data(self, X, y, multi_output=True)
         super().fit(X, Y)
+        return self
+
+    def partial_fit(self, X, y):
+        """
+        Train the gradient-free neural network on the batched training set (X, y).
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The batched training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The batched target values.
+
+        Returns
+        -------
+        object
+            Returns the partially fitted estimator.
+        """
+        # shape: (n_samples, n_features)
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
+        if Y.ndim == 1:
+            Y = Y.reshape(-1, 1)
+        super().partial_fit(X, Y)
         return self
 
     def predict(self, X):
