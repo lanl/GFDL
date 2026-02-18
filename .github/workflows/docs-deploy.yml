@@ -1,13 +1,12 @@
-name: Docs CI
+name: Docs Pages Deployment CI
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [ main, test-docs-deployment ]
+  workflow_dispatch: 
 
 jobs:
-  docs:
+  build-docs:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,8 +30,21 @@ jobs:
       run: |
         cd $RUNNER_TEMP
         python -m pytest --pyargs gfdl --cov=gfdl --cov-report=term-missing
-        
-    - name: upload PR artifact
-      uses: actions/upload-artifact@v4
+
+    # needed for pages deployment from the main or the deployment test branch
+    - name: upload pages artifacts
+      uses: actions/upload-pages-artifact@v3
       with:
-        path: docs/build/html
+        path: docs/build/html  
+
+  # deploy for push events on the main or deployment test branch
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-docs
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/deploy-pages@v4
