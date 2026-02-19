@@ -53,7 +53,7 @@ import os
 from pathlib import Path
 
 GITHUB_REPO_URL = "https://github.com/lanl/GFDL"   
-GITHUB_REF = "main" 
+GITHUB_REF = os.getenv("GITHUB_REF_NAME") or "main"
 
 # conf.py is docs/source/conf.py -> repo root is usually parents[2]
 REPO_ROOT = Path(__file__).resolve().parents[2]
