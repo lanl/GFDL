@@ -52,11 +52,19 @@ import inspect
 import os
 from pathlib import Path
 
+LINKCODE_DEBUG = os.getenv("LINKCODE_DEBUG") == "1"
+
 GITHUB_REPO_URL = "https://github.com/lanl/GFDL"   
 GITHUB_REF = os.getenv("GITHUB_REF_NAME") or "main"
 
 # conf.py is docs/source/conf.py -> repo root is usually parents[2]
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def print_dbg_info(msg: str) -> None:
+    if LINKCODE_DEBUG:
+        print(f"[linkcode-resolve-dbg] {msg}")
+
 
 def linkcode_resolve(domain, info):
     """Return a GitHub URL for the documented Python object."""
@@ -65,12 +73,17 @@ def linkcode_resolve(domain, info):
 
     modname = info.get("module")
     fullname = info.get("fullname")
+
+    print_dbg_info(f"domain={domain} module={modname} fullname={fullname}")
+
     if not modname:
+        print_dbg_info("missing modname or repo url, returns None")
         return None
 
     try:
         module = __import__(modname, fromlist=["*"])
-    except Exception:
+    except Exception as e:
+        print_dbg_info(f"import failed: error = {e!r}")
         return None
 
     obj = module
@@ -79,23 +92,31 @@ def linkcode_resolve(domain, info):
             continue
         try:
             obj = getattr(obj, part)
-        except Exception:
+        except Exception as e:
+            print_dbg_info(f"getattr failed on {part}: error = {e!r}")
             return None
 
     try:
         obj = inspect.unwrap(obj)
         filename = inspect.getsourcefile(obj)
         if not filename:
+            print_dbg_info("no filename, returns None")
             return None
         filename = Path(filename).resolve()
         source, start_line = inspect.getsourcelines(obj)
-    except Exception:
+    except Exception as e :
+        print_dbg_info(f"inspect failed: {e!r}")
         return None
 
     try:
         rel_path = filename.relative_to(REPO_ROOT).as_posix()
-    except ValueError:
+    except Exception as e:
+        print_dbg_info(f"filename relative_to failed. filename={filename} REPO_ROOT={REPO_ROOT} error ={e!r}")
         return None
 
     end_line = start_line + len(source) - 1
-    return f"{GITHUB_REPO_URL}/blob/{GITHUB_REF}/{rel_path}#L{start_line}-L{end_line}"
+    url = f"{GITHUB_REPO_URL}/blob/{GITHUB_REF}/{rel_path}#L{start_line}-L{end_line}"
+    
+    print_dbg_info(f"url={url}")
+
+    return url
