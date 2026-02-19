@@ -40,8 +40,6 @@ jobs:
       run: |
         ruff check
     - name: lint and build docs
-      env:
-        LINKCODE_DEBUG: "1"
       run: |
         numpydoc lint src/gfdl/model.py src/gfdl/activations.py src/gfdl/weights.py
         cd docs && make html SPHINXOPTS="-W --keep-going"
