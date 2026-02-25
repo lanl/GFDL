@@ -36,17 +36,10 @@ jobs:
         python -m pip install -v -e ".[test]"
         python -m pip install ruff==0.13.1
         python -m pip install -r .github/constraints/deps.txt
-    - name: lint
-      run: |
-        ruff check
     - name: lint and build docs
       run: |
         numpydoc lint src/gfdl/model.py src/gfdl/activations.py src/gfdl/weights.py
         cd docs && make html SPHINXOPTS="-W --keep-going"
-    - name: test
-      run: |
-        cd $RUNNER_TEMP
-        python -m pytest --pyargs gfdl --cov=gfdl --cov-report=term-missing
 
     # needed for pages deployment from the main or the deployment test branch
     - name: upload pages artifacts

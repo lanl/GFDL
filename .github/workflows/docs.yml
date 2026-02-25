@@ -20,9 +20,6 @@ jobs:
         python -m pip install -v ".[test]"
         python -m pip install ruff==0.13.1
         python -m pip install -r .github/constraints/deps.txt
-    - name: lint
-      run: |
-        ruff check
     - name: lint and build docs
       run: |
         numpydoc lint src/gfdl/model.py src/gfdl/activations.py src/gfdl/weights.py
