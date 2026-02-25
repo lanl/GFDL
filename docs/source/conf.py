@@ -79,7 +79,7 @@ def linkcode_resolve(domain, info):
             continue
         try:
             obj = getattr(obj, part)
-        except Exception:
+        except AttributeError:
             return None
 
     try:
@@ -94,7 +94,7 @@ def linkcode_resolve(domain, info):
 
     try:
         rel_path = filename.relative_to(REPO_ROOT).as_posix()
-    except Exception:
+    except ValueError:
         return None
 
     end_line = start_line + len(source) - 1
