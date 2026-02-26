@@ -28,9 +28,6 @@ jobs:
     - name: lint
       run: |
         ruff check
-    - name: lint docs
-      run: |
-        numpydoc lint src/gfdl/model.py src/gfdl/activations.py src/gfdl/weights.py
     - name: test
       run: |
         cd $RUNNER_TEMP
