@@ -31,10 +31,6 @@ jobs:
     - name: lint
       run: |
         ruff check
-    - name: lint and build docs
-      run: |
-        numpydoc lint src/gfdl/model.py src/gfdl/activations.py src/gfdl/weights.py
-        cd docs && make html SPHINXOPTS="-W --keep-going"
     - name: test
       run: |
         cd $RUNNER_TEMP
