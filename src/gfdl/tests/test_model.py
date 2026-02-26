@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from sklearn.datasets import load_digits, make_classification
+from sklearn.base import clone
+from sklearn.datasets import load_breast_cancer, load_digits, make_classification
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -516,3 +517,379 @@ def test_rtol_ensemble(reg_alpha, rtol, expected_acc, expected_roc):
 
     np.testing.assert_allclose(acc_cur, expected_acc)
     np.testing.assert_allclose(roc_cur, expected_roc, atol=1e-05)
+
+
+@pytest.mark.parametrize("hidden_layer_sizes", [(10,), (5, 5)])
+@pytest.mark.parametrize("direct_links", [True, False])
+@pytest.mark.parametrize("n_classes", [2, 5])
+@pytest.mark.parametrize("activation", activations)
+@pytest.mark.parametrize("weight_init", weights[1:])
+@pytest.mark.parametrize("alpha", [None, 0.1, 0.5, 1])
+def test_partial_fit_classifier(
+    hidden_layer_sizes, direct_links, n_classes, activation, weight_init, alpha
+):
+    # Test coefficient equivalence between partial_fit() and fit() as long
+    # as D.T @ D is well-conditioned
+
+    # partial_fit is equivalent to accumulating normal equations
+    X, y = make_classification(
+        n_samples=400,
+        n_features=20,
+        n_informative=10,
+        n_redundant=2,
+        n_classes=n_classes,
+        random_state=0,
+    )
+
+    ff_model = GFDLClassifier(
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_init,
+        direct_links=direct_links,
+        seed=0,
+        reg_alpha=alpha,
+    )
+
+    pf_model = clone(ff_model)
+
+    ff_model.fit(X, y)
+
+    classes = np.unique(y)
+    batch = 25
+    for start in range(0, len(X), batch):
+        end = min(start + batch, len(X))
+        Xb = X[start:end]
+        yb = y[start:end]
+        if start == 0:
+            pf_model.partial_fit(Xb, yb, classes=classes)
+        else:
+            pf_model.partial_fit(Xb, yb)
+
+    assert_allclose(ff_model.coeff_, pf_model.coeff_, rtol=1e-5, atol=1e-5)
+
+
+@pytest.mark.parametrize("hidden_layer_sizes", [(10,), (5, 5)])
+@pytest.mark.parametrize("n_classes", [2, 5])
+@pytest.mark.parametrize("activation", activations)
+@pytest.mark.parametrize("weight_init", weights[1:])
+@pytest.mark.parametrize("alpha", [None, 0.1, 0.5, 1])
+def test_partial_fit_ensemble(
+    hidden_layer_sizes, n_classes, activation, weight_init, alpha
+):
+    # Test coefficient equivalence between partial_fit() and fit() as long
+    # as D.T @ D is well-conditioned
+
+    # partial_fit is equivalent to accumulating normal equations
+    X, y = make_classification(
+        n_samples=400,
+        n_features=20,
+        n_informative=10,
+        n_redundant=5,
+        n_classes=n_classes,
+        random_state=0,
+    )
+
+    ff_model = EnsembleGFDLClassifier(
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_init,
+        seed=0,
+        reg_alpha=alpha,
+    )
+
+    pf_model = clone(ff_model)
+
+    ff_model.fit(X, y)
+
+    classes = np.unique(y)
+    batch = 25
+    for start in range(0, len(X), batch):
+        end = min(start + batch, len(X))
+        Xb = X[start:end]
+        yb = y[start:end]
+        if start == 0:
+            pf_model.partial_fit(Xb, yb, classes=classes)
+        else:
+            pf_model.partial_fit(Xb, yb)
+
+    for ff_c, pf_c in zip(ff_model.coeffs_, pf_model.coeffs_, strict=False):
+        assert_allclose(ff_c, pf_c, rtol=1e-5, atol=4e-4)
+
+
+@pytest.mark.parametrize(
+    "Classifier, ridge_alpha, expected",
+    [
+        (GFDLClassifier, 0.1, 0.956140350877193),
+        # NOTE: for Moore-Penrose, a large singular value
+        # cutoff (rcond) is required to achieve reasonable accuracy
+        # with the Wisconsin breast cancer dataset
+        # Without rtol accuracy ~= 0.6316
+        (GFDLClassifier, None, 0.9736842105263158),
+        (EnsembleGFDLClassifier, 0.1, 0.956140350877193),
+        # NOTE: for Moore-Penrose, a large singular value
+        # cutoff (rcond) is required to achieve reasonable accuracy
+        # with the Wisconsin breast cancer dataset
+        # Without rtol accuracy ~= 0.7193
+        (EnsembleGFDLClassifier, None, 0.956140350877193),
+    ],
+)
+def test_rtol_partial_fit(Classifier, ridge_alpha, expected):
+    X, y = load_breast_cancer(return_X_y=True)
+
+    X = StandardScaler().fit_transform(X)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, shuffle=True
+    )
+
+    scaler = StandardScaler().fit(X_train)
+    X_train = scaler.transform(X_train)
+    X_test = scaler.transform(X_test)
+    classes = np.unique(y)
+
+    model = Classifier(
+        hidden_layer_sizes=[800]
+        * 2,  # partial_fit is slow so smaller network for speed
+        activation="sigmoid",
+        weight_scheme="uniform",
+        seed=0,
+        reg_alpha=ridge_alpha,
+        rtol=1e-6,
+    )
+
+    batch = 50
+    for start in range(0, X_train.shape[0], batch):
+        end = min(start + batch, X_train.shape[0])
+        if start == 0:
+            model.partial_fit(X_train[start:end], y_train[start:end], classes=classes)
+        else:
+            model.partial_fit(X_train[start:end], y_train[start:end])
+
+    actual = model.score(X_test, y_test)
+    # RandomForestRegressor() with default params scores 0.958 here
+    # RVFL with above params scores comparatively:
+    assert_allclose(actual, expected)
+
+
+@pytest.mark.parametrize("Classifier", [GFDLClassifier, EnsembleGFDLClassifier])
+def test_partial_fit_classes_error(Classifier):
+    # Test partial_fit error handling.
+    X, y = make_classification(n_samples=50, n_features=10, n_classes=2, random_state=0)
+    clf = Classifier(seed=0)
+
+    with pytest.raises(TypeError, match="Classes must not be None"):
+        # classes parameter is required for first partial_fit call
+        clf.partial_fit(X[:25], y[:25])
+
+    clf.partial_fit(X[:25], y[:25], classes=np.array([0, 1]))
+    y_bad = y[25:].copy()
+    y_bad[0] = 2
+    with pytest.raises(ValueError, match="Expected only labels in classes_"):
+        # Raised when unseen classes are passed after initial partial_fit call
+        clf.partial_fit(X[25:], y_bad)
+
+
+def test_batch_order_invariance():
+    # Order-invariance test for classifier partial_fit
+    X, y = make_classification(
+        n_samples=400,
+        n_features=20,
+        n_informative=10,
+        n_redundant=5,
+        n_classes=2,
+        random_state=0,
+    )
+
+    ff_model = GFDLClassifier(seed=0, reg_alpha=0.1)
+    pf_model = clone(ff_model)
+
+    ff_model.fit(X, y)
+
+    classes = np.unique(y)
+    batch = 25
+    rng = np.random.default_rng(0)
+    indices = rng.permutation(np.arange(0, len(X), batch))
+    for start in indices:
+        end = min(start + batch, len(X))
+        Xb = X[start:end]
+        yb = y[start:end]
+        if start == indices[0]:
+            pf_model.partial_fit(Xb, yb, classes=classes)
+        else:
+            pf_model.partial_fit(Xb, yb)
+
+    assert_allclose(ff_model.coeff_, pf_model.coeff_, rtol=4e-8, atol=2e-10)
+
+
+def test_batch_order_invariance_ensemble():
+    # Order-invariance test for ensemble partial_fit
+    # Unfortunately because ensembleGFDL has its' own partial_fit()
+    # implementation and the difference in comparing coeffs we need
+    # to repeat a lot of tests
+    X, y = make_classification(
+        n_samples=400,
+        n_features=20,
+        n_informative=10,
+        n_redundant=5,
+        n_classes=2,
+        random_state=0,
+    )
+
+    ff_model = EnsembleGFDLClassifier(seed=0, reg_alpha=0.1)
+    pf_model = clone(ff_model)
+
+    ff_model.fit(X, y)
+
+    classes = np.unique(y)
+    batch = 25
+    rng = np.random.default_rng(0)
+    starts = rng.permutation(np.arange(0, len(X), batch))
+
+    for j, start in enumerate(starts):
+        end = min(start + batch, len(X))
+        Xb = X[start:end]
+        yb = y[start:end]
+        if j == 0:
+            pf_model.partial_fit(Xb, yb, classes=classes)
+        else:
+            pf_model.partial_fit(Xb, yb)
+
+    for ff_c, pf_c in zip(ff_model.coeffs_, pf_model.coeffs_, strict=False):
+        assert_allclose(ff_c, pf_c, rtol=4e-8, atol=2e-10)
+
+
+def test_batch_partition_invariance():
+    # Partition-invariance test for partial_fit
+    X, y = make_classification(
+        n_samples=400,
+        n_features=20,
+        n_informative=10,
+        n_redundant=5,
+        n_classes=2,
+        random_state=0,
+    )
+    pf1 = GFDLClassifier(seed=0, reg_alpha=0.1)
+    pf2 = clone(pf1)
+
+    classes = np.unique(y)
+    for i in range(0, len(X), 10):
+        pf1.partial_fit(X[i : i + 10], y[i : i + 10], classes=classes)
+
+    cuts = [17, 61, 140]
+    starts = [0] + cuts
+    ends = cuts + [len(X)]
+    for s, e in zip(starts, ends, strict=False):
+        pf2.partial_fit(X[s:e], y[s:e], classes=classes)
+
+    assert_allclose(pf1.coeff_, pf2.coeff_, rtol=1e-7, atol=1e-9)
+
+
+def test_batch_partition_invariance_ensemble():
+    # Partition-invariance test for ensemble partial_fit
+    X, y = make_classification(
+        n_samples=400,
+        n_features=20,
+        n_informative=10,
+        n_redundant=5,
+        n_classes=2,
+        random_state=0,
+    )
+    pf1 = EnsembleGFDLClassifier(seed=0, reg_alpha=0.1)
+    pf2 = clone(pf1)
+
+    classes = np.unique(y)
+    for i in range(0, len(X), 10):
+        pf1.partial_fit(X[i : i + 10], y[i : i + 10], classes=classes)
+
+    cuts = [17, 61, 140]
+    starts = [0] + cuts
+    ends = cuts + [len(X)]
+    for s, e in zip(starts, ends, strict=False):
+        pf2.partial_fit(X[s:e], y[s:e], classes=classes)
+
+    for pf1_c, pf2_c in zip(pf1.coeffs_, pf2.coeffs_, strict=False):
+        assert_allclose(pf1_c, pf2_c, rtol=4e-8, atol=2e-10)
+
+
+@pytest.mark.xfail(
+    reason="partial_fit diverges from fit for ill-conditioned design matrices",
+    strict=True,
+)
+def test_partial_fit_ill_conditioned():
+    # For direct_links=True and certain activations and weight combinations,
+    # the design matrix becomes rank-deficient and the exact
+    # solve can diverge from fit()
+
+    X, y = make_classification(
+        n_samples=100,
+        n_features=10,
+        n_informative=4,
+        n_classes=5,
+        random_state=0,
+    )
+
+    ff_model = GFDLClassifier(
+        hidden_layer_sizes=(50, 50),
+        activation="softmax",
+        weight_scheme="range",
+        direct_links=True,
+        seed=0,
+        reg_alpha=None,
+    )
+    pf_model = clone(ff_model)
+
+    ff_model.fit(X, y)
+
+    classes = np.unique(y)
+    batch = 10
+    for start in range(0, len(X), batch):
+        end = min(start + batch, len(X))
+        if start == 0:
+            pf_model.partial_fit(X[start:end], y[start:end], classes=classes)
+        else:
+            pf_model.partial_fit(X[start:end], y[start:end])
+
+    # partial_fit() is expected to diverge from fit() given
+    # these params
+    assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-3, atol=1e-3)
+
+
+@pytest.mark.xfail(
+    reason="partial_fit diverges from fit for ill-conditioned design matrices",
+    strict=True,
+)
+def test_partial_fit_ill_conditioned_ensemble():
+    # For direct_links=True and certain activations and weight combinations,
+    # the design matrix becomes rank-deficient and the exact
+    # solve can diverge from fit()
+
+    X, y = make_classification(
+        n_samples=100,
+        n_features=10,
+        n_informative=4,
+        n_classes=5,
+        random_state=0,
+    )
+
+    ff_model = EnsembleGFDLClassifier(
+        hidden_layer_sizes=(50, 50),
+        activation="softmax",
+        weight_scheme="range",
+        seed=0,
+        reg_alpha=None,
+    )
+    pf_model = clone(ff_model)
+
+    ff_model.fit(X, y)
+
+    classes = np.unique(y)
+    batch = 10
+    for start in range(0, len(X), batch):
+        end = min(start + batch, len(X))
+        if start == 0:
+            pf_model.partial_fit(X[start:end], y[start:end], classes=classes)
+        else:
+            pf_model.partial_fit(X[start:end], y[start:end])
+
+    # this should fail
+    for ff_c, pf_c in zip(ff_model.coeffs_, pf_model.coeffs_, strict=False):
+        assert_allclose(ff_c, pf_c, rtol=1e-2, atol=1e-2)
