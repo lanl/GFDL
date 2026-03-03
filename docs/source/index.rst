@@ -37,8 +37,7 @@ Quick example
    import numpy as np
    from gfdl.model import GFDLClassifier
 
-   rng = np.random.default_rng(seed=42)
-   X = rng.standard_normal(size=(100, 10))
+   X = np.random.randn(100, 10)
    y = (X[:, 0] > 0).astype(int)
 
    clf = GFDLClassifier()
@@ -49,5 +48,4 @@ Quick example
    :maxdepth: 2
 
    api/index
-   release
    dev

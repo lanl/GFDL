@@ -29,8 +29,7 @@ def zeros(d, h, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Needed for keyword arguments and compatibility with other weight function apis
-        but not relevant for this function.
+        Other keyword arguments.
     """
     return np.zeros((h, d))
 
@@ -59,15 +58,20 @@ def uniform(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments. Placeholder for exposing distribution
-        parameters later on.
+        Other keyword arguments.
+
+    Notes
+    -----
+    uniform() had to be split out for pickle/serialization
+    for conformance with the sklearn estimator API:
+    https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
     """
     return rng.uniform(0, 1, (h, d))
 
 
 def range(d, h, **kwargs):
     """
-    The weight function setting weights to a normalized np.arange.
+    The weight function returning samples drawn from discrete uniform distribution.
 
     Parameters
     ----------
@@ -81,13 +85,12 @@ def range(d, h, **kwargs):
     Returns
     -------
     ndarray or scalar
-        Set the weights to normalized np.arange over the range ``[0, d*h)``.
+        Drawn samples from the discrete uniform distribution ``[0, d*h)``.
 
     Other Parameters
     ----------------
     **kwargs : dict
-        Needed for keyword arguments and compatibility with other weight function apis
-        but not relevant for this function.
+        Other keyword arguments.
     """
     s = np.arange(d * h)
     s = np.subtract(s, np.mean(s))
@@ -121,12 +124,20 @@ def he_uniform(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Needed for keyword arguments and compatibility with other weight function apis
-        but not relevant for this function.
+        Other keyword arguments.
 
     Notes
     -----
+    This implementation deviates from the standard expression where
+    the number of input features (d) are used to compute the limit.
     https://faroit.com/keras-docs/2.0.0/initializers/#he_uniform
+    However, using the standard form returned a different
+    answer from GrafoRVFL, which uses the output size i.e. hidden
+    layer size instead (from ChatGPT). Needs further exploration
+    of why they deviate from the standard form.
+    If we choose to use the standard form, then our tests cannot be
+    used to compare against GrafoRVFL as the results could be order
+    one difference or higher.
     """
 
     limit = np.sqrt(6 / h)
@@ -158,11 +169,11 @@ def lecun_uniform(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Needed for keyword arguments and compatibility with other weight function apis
-        but not relevant for this function.
+        Other keyword arguments.
 
     Notes
     -----
+    Same comment as "he_uniform"
     https://faroit.com/keras-docs/2.0.0/initializers/#lecun_uniform
     """
 
@@ -195,8 +206,7 @@ def glorot_uniform(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Needed for keyword arguments and compatibility with other weight function apis
-        but not relevant for this function.
+        Other keyword arguments.
 
     Notes
     -----
@@ -233,8 +243,7 @@ def normal(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Other keyword arguments. Placeholder for exposing distribution
-        parameters later on.
+        Other keyword arguments.
     """
     return rng.normal(0, 1, (h, d))
 
@@ -259,16 +268,16 @@ def he_normal(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the He normal distribution with
-        mean ``0`` and standard deviation ``sqrt(2/h)``.
+        mean ``0`` and standard deviation ``sqrt(2/d)``.
 
     Other Parameters
     ----------------
     **kwargs : dict
-        Needed for keyword arguments and compatibility with other weight function apis
-        but not relevant for this function.
+        Other keyword arguments.
 
     Notes
     -----
+    Same comment as "he_uniform"
     https://faroit.com/keras-docs/2.0.0/initializers/#he_normal
     """
 
@@ -296,16 +305,16 @@ def lecun_normal(d, h, *, rng, **kwargs):
     -------
     ndarray or scalar
         Draw samples from the Lecun normal distribution
-        with mean ``0`` and standard deviation ``sqrt(1/h)``.
+        with mean ``0`` and standard deviation ``1/sqrt(h)``.
 
     Other Parameters
     ----------------
     **kwargs : dict
-        Needed for keyword arguments and compatibility with other weight function apis
-        but not relevant for this function.
+        Other keyword arguments.
 
     Notes
     -----
+    Same comment as "he_uniform"
     https://www.tensorflow.org/api_docs/python/tf/keras/initializers/LecunNormal
     """
 
@@ -338,8 +347,7 @@ def glorot_normal(d, h, *, rng, **kwargs):
     Other Parameters
     ----------------
     **kwargs : dict
-        Needed for keyword arguments and compatibility with other weight function apis
-        but not relevant for this function.
+        Other keyword arguments.
 
     Notes
     -----

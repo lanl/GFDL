@@ -4,10 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gfdl"
-version = "0.2.0.dev0"
+version = "0.1.0.dev0"
 description = "Gradient Free Deep Learning (GFDL) networks including single and multi layer random vector functional link (RVFL) networks and extreme learning machines (ELMs)"
 requires-python = ">=3.12"
-readme = "README.md"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -26,14 +25,7 @@ classifiers = [
     "Operating System :: MacOS",
 ]
 dependencies = ["numpy>=2.0.0",
-                "scikit-learn>=1.5.0",
-                "scipy>=1.13.0",
-                "packaging>=24.0"]
-
-[project.urls]
-source = "https://github.com/lanl/GFDL"
-download = "https://github.com/lanl/GFDL/releases"
-tracker = "https://github.com/lanl/GFDL/issues"
+                "scikit-learn>=1.2.1"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
