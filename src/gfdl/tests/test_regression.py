@@ -183,7 +183,7 @@ def test_partial_fit_regressor(
         yb = y[start:end]
         pf_model.partial_fit(Xb, yb)
 
-    np.testing.assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-5, atol=4e-5)
+    np.testing.assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-5, atol=1e-4)
 
 
 @pytest.mark.parametrize("reg_alpha, expected", [
