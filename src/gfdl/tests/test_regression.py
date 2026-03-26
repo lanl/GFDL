@@ -185,6 +185,7 @@ def test_partial_fit_regressor(
 
     np.testing.assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-5, atol=4e-5)
 
+
 @pytest.mark.parametrize("reg_alpha, expected", [
     (0.1, 0.7854487722792983),
     # NOTE: for Moore-Penrose, a large singular value

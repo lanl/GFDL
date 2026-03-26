@@ -425,8 +425,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
         Notes
         -----
-        The design matrix is incrementally updated by persisting the gram matrix 
-        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding 
+        The design matrix is incrementally updated by persisting the gram matrix
+        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
         the gram and moment contributions of each new batch.
         """
         # shape: (n_samples, n_features)
@@ -642,7 +642,7 @@ class EnsembleGFDL(BaseEstimator):
                 coef_ = np.linalg.lstsq(self.As[i], self.Bs[i], rcond=self.rtol)[0]
             else:
                 reg = np.identity(self.As[i].shape[0]) * self.reg_alpha
-                coef_ = np.linalg.lstsq(self.As[i]+reg, self.Bs[i])[0]
+                coef_ = np.linalg.lstsq(self.As[i] + reg, self.Bs[i])[0]
 
             self.coeffs_.append(coef_)
 
@@ -845,8 +845,8 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
 
         Notes
         -----
-        The design matrix is incrementally updated by persisting the gram matrix 
-        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding 
+        The design matrix is incrementally updated by persisting the gram matrix
+        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
         the gram and moment contributions of each new batch.
         """
         # shape: (n_samples, n_features)
@@ -1126,8 +1126,8 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
         Notes
         -----
-        The design matrix is incrementally updated by persisting the gram matrix 
-        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding 
+        The design matrix is incrementally updated by persisting the gram matrix
+        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
         the gram and moment contributions of each new batch.
         """
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))

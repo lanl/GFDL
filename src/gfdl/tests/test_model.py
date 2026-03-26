@@ -532,7 +532,14 @@ def test_rtol_ensemble(reg_alpha, rtol, expected_acc, expected_roc):
     ],
 )
 def test_partial_fit(
-    Classifier, hidden_layer_sizes, direct_links, n_classes, activation, weight_init, alpha, attr
+    Classifier,
+    hidden_layer_sizes,
+    direct_links,
+    n_classes,
+    activation,
+    weight_init,
+    alpha,
+    attr
 ):
     # Test coefficient equivalence between partial_fit() and fit() as long
     # as D.T @ D is well-conditioned
@@ -547,13 +554,13 @@ def test_partial_fit(
         random_state=0,
     )
 
-    kwargs = dict(
-        hidden_layer_sizes=hidden_layer_sizes,
-        activation=activation,
-        weight_scheme=weight_init,
-        seed=0,
-        reg_alpha=alpha,
-    )
+    kwargs = {
+        "hidden_layer_sizes": hidden_layer_sizes,
+        "activation": activation,
+        "weight_scheme": weight_init,
+        "seed": 0,
+        "reg_alpha": alpha,
+    }
     if direct_links is not None:
         kwargs["direct_links"] = direct_links
 
@@ -573,7 +580,9 @@ def test_partial_fit(
         else:
             pf_model.partial_fit(Xb, yb)
 
-    assert_allclose(getattr(pf_model,attr), getattr(ff_model,attr), rtol=1e-5, atol=4e-4)
+    assert_allclose(
+        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=4e-4
+        )
 
 
 @pytest.mark.parametrize(
@@ -646,6 +655,7 @@ def test_partial_fit_classes_error(Classifier):
         # Raised when unseen classes are passed after initial partial_fit call
         clf.partial_fit(X[25:], y_bad)
 
+
 @pytest.mark.parametrize(
     "Classifier, attr",
     [
@@ -683,7 +693,10 @@ def test_batch_order_invariance(Classifier, attr):
         else:
             pf_model.partial_fit(Xb, yb)
 
-    assert_allclose(getattr(pf_model, attr), getattr(ff_model, attr), rtol=4e-8, atol=2e-10)
+    assert_allclose(
+        getattr(pf_model, attr), getattr(ff_model, attr), rtol=4e-8, atol=2e-10
+        )
+
 
 @pytest.mark.parametrize(
     "Classifier, attr",
@@ -716,7 +729,8 @@ def test_batch_partition_invariance(Classifier, attr):
     for s, e in zip(starts, ends, strict=False):
         pf2.partial_fit(X[s:e], y[s:e], classes=classes)
 
-    assert_allclose(getattr(pf2,attr), getattr(pf1,attr), rtol=1e-7, atol=1e-9)
+    assert_allclose(getattr(pf2, attr), getattr(pf1, attr), rtol=1e-7, atol=1e-9)
+
 
 @pytest.mark.parametrize(
     "Classifier, attr",
@@ -766,4 +780,6 @@ def test_partial_fit_ill_conditioned(Classifier, attr):
 
     # partial_fit() is expected to diverge from fit() given
     # these params
-    assert_allclose(getattr(pf_model,attr), getattr(ff_model,attr), rtol=1e-3, atol=1e-3)
+    assert_allclose(
+        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-3, atol=1e-3
+        )
