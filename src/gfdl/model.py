@@ -195,13 +195,10 @@ class GFDL(BaseEstimator):
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
 
         if self.reg_alpha is None:
-            if self.rtol is None:
-                self.coeff_ = np.linalg.pinv(self.A) @ self.B
-            else:
-                self.coeff_ = np.linalg.pinv(self.A, rcond=self.rtol) @ self.B
+            self.coeff_ = np.linalg.lstsq(self.A, self.B, rcond=self.rtol)[0]
         else:
             reg = np.identity(self.A.shape[0]) * self.reg_alpha
-            self.coeff_ = np.linalg.solve(self.A + reg, self.B)
+            self.coeff_ = np.linalg.lstsq(self.A + reg, self.B)[0]
         if self.coeff_.ndim == 2 and self.coeff_.shape[1] == 1:
             self.coeff_ = self.coeff_.ravel()
         return self
@@ -237,7 +234,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
     Parameters
     ----------
-    hidden_layer_sizes : array-like of shape(n_layers,), default=(100,)
+    hidden_layer_sizes : array-like of shape (n_layers,), default=(100,)
         The ith element represents the number of neurons in the ith
         hidden layer.
 
@@ -270,7 +267,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
@@ -333,7 +331,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         bias term corresponding to layer i.
 
     coeff_ : ndarray of shape (n_features_out, n_outputs)
-        Output weight matrix learned by linear regression.
+        Output weight matrix learned by fit method.
 
     See Also
     --------
@@ -424,6 +422,12 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         -------
         object
             The partially fitted estimator.
+
+        Notes
+        -----
+        The design matrix is incrementally updated by persisting the gram matrix 
+        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding 
+        the gram and moment contributions of each new batch.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
@@ -490,7 +494,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         return out
 
 
-class EnsembleGFDL(GFDL):
+class EnsembleGFDL(BaseEstimator):
     """Base class for ensemble GFDL model for classification and regression."""
     def __init__(
         self,
@@ -501,13 +505,15 @@ class EnsembleGFDL(GFDL):
         reg_alpha: float = None,
         rtol: float | None = None,
     ):
-        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
-                         activation=activation,
-                         weight_scheme=weight_scheme,
-                         direct_links=True,
-                         seed=seed,
-                         reg_alpha=reg_alpha,
-                         rtol=rtol)
+        self.hidden_layer_sizes = hidden_layer_sizes
+        self.activation = activation
+        self.weight_scheme = weight_scheme
+        self.seed = seed
+        self.reg_alpha = reg_alpha
+        self.rtol = rtol
+
+    def get_generator(self, seed):
+        return np.random.default_rng(seed)
 
     def fit(self, X, Y):
 
@@ -633,15 +639,10 @@ class EnsembleGFDL(GFDL):
             # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
 
             if self.reg_alpha is None:
-                if self.rtol is None:
-                    coef_ = np.linalg.pinv(self.As[i]) @ self.Bs[i]
-                else:
-                    coef_ = np.linalg.pinv(self.As[i], rcond=self.rtol) @ self.Bs[i]
+                coef_ = np.linalg.lstsq(self.As[i], self.Bs[i], rcond=self.rtol)[0]
             else:
                 reg = np.identity(self.As[i].shape[0]) * self.reg_alpha
-                coef_ = np.linalg.solve(self.As[i] + reg, self.Bs[i])
-            if coef_.ndim == 2 and coef_.shape[1] == 1:
-                coef_ = coef_.ravel()
+                coef_ = np.linalg.lstsq(self.As[i]+reg, self.Bs[i])[0]
 
             self.coeffs_.append(coef_)
 
@@ -704,7 +705,8 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
@@ -840,6 +842,12 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         -------
         object
           The partially fitted estimator.
+
+        Notes
+        -----
+        The design matrix is incrementally updated by persisting the gram matrix 
+        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding 
+        the gram and moment contributions of each new batch.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
@@ -945,7 +953,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
     Parameters
     ----------
-    hidden_layer_sizes : array-like of shape(n_layers,), default=(100,)
+    hidden_layer_sizes : array-like of shape (n_layers,), default=(100,)
         The ith element represents the number of neurons in the ith
         hidden layer.
 
@@ -978,7 +986,8 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
 
         - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
 
-        - 'range': discrete uniform distribution (:func:`range <gfdl.weights.range>`).
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
 
         - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
 
@@ -1039,7 +1048,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         bias term corresponding to layer i.
 
     coeff_ : ndarray of shape (n_features_out, n_outputs)
-        Output weight matrix learned by linear regression.
+        Output weight matrix learned by the fit method.
 
     See Also
     --------
@@ -1114,8 +1123,13 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         -------
         object
             Returns the partially fitted estimator.
+
+        Notes
+        -----
+        The design matrix is incrementally updated by persisting the gram matrix 
+        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding 
+        the gram and moment contributions of each new batch.
         """
-        # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
         if Y.ndim == 1:
             Y = Y.reshape(-1, 1)

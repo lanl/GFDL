@@ -519,61 +519,20 @@ def test_rtol_ensemble(reg_alpha, rtol, expected_acc, expected_roc):
 
 
 @pytest.mark.parametrize("hidden_layer_sizes", [(10,), (5, 5)])
-@pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_init", list(WEIGHTS.keys())[1:])
 @pytest.mark.parametrize("alpha", [None, 0.1, 0.5, 1])
-def test_partial_fit_classifier(
-    hidden_layer_sizes, direct_links, n_classes, activation, weight_init, alpha
-):
-    # Test coefficient equivalence between partial_fit() and fit() as long
-    # as D.T @ D is well-conditioned
-
-    # partial_fit is equivalent to accumulating normal equations
-    X, y = make_classification(
-        n_samples=400,
-        n_features=20,
-        n_informative=10,
-        n_redundant=2,
-        n_classes=n_classes,
-        random_state=0,
-    )
-
-    ff_model = GFDLClassifier(
-        hidden_layer_sizes=hidden_layer_sizes,
-        activation=activation,
-        weight_scheme=weight_init,
-        direct_links=direct_links,
-        seed=0,
-        reg_alpha=alpha,
-    )
-
-    pf_model = clone(ff_model)
-
-    ff_model.fit(X, y)
-
-    classes = np.unique(y)
-    batch = 25
-    for start in range(0, len(X), batch):
-        end = min(start + batch, len(X))
-        Xb = X[start:end]
-        yb = y[start:end]
-        if start == 0:
-            pf_model.partial_fit(Xb, yb, classes=classes)
-        else:
-            pf_model.partial_fit(Xb, yb)
-
-    assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-5, atol=1e-5)
-
-
-@pytest.mark.parametrize("hidden_layer_sizes", [(10,), (5, 5)])
-@pytest.mark.parametrize("n_classes", [2, 5])
-@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
-@pytest.mark.parametrize("weight_init", list(WEIGHTS.keys())[1:])
-@pytest.mark.parametrize("alpha", [None, 0.1, 0.5, 1])
-def test_partial_fit_ensemble(
-    hidden_layer_sizes, n_classes, activation, weight_init, alpha
+@pytest.mark.parametrize(
+    "Classifier, direct_links, attr",
+    [
+        (GFDLClassifier, True, "coeff_"),
+        (GFDLClassifier, False, "coeff_"),
+        (EnsembleGFDLClassifier, None, "coeffs_"),
+    ],
+)
+def test_partial_fit(
+    Classifier, hidden_layer_sizes, direct_links, n_classes, activation, weight_init, alpha, attr
 ):
     # Test coefficient equivalence between partial_fit() and fit() as long
     # as D.T @ D is well-conditioned
@@ -588,14 +547,17 @@ def test_partial_fit_ensemble(
         random_state=0,
     )
 
-    ff_model = EnsembleGFDLClassifier(
+    kwargs = dict(
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
         weight_scheme=weight_init,
         seed=0,
         reg_alpha=alpha,
     )
+    if direct_links is not None:
+        kwargs["direct_links"] = direct_links
 
+    ff_model = Classifier(**kwargs)
     pf_model = clone(ff_model)
 
     ff_model.fit(X, y)
@@ -610,7 +572,8 @@ def test_partial_fit_ensemble(
             pf_model.partial_fit(Xb, yb, classes=classes)
         else:
             pf_model.partial_fit(Xb, yb)
-    assert_allclose(pf_model.coeffs_, ff_model.coeffs_, rtol=1e-5, atol=4e-4)
+
+    assert_allclose(getattr(pf_model,attr), getattr(ff_model,attr), rtol=1e-5, atol=4e-4)
 
 
 @pytest.mark.parametrize(
@@ -683,9 +646,16 @@ def test_partial_fit_classes_error(Classifier):
         # Raised when unseen classes are passed after initial partial_fit call
         clf.partial_fit(X[25:], y_bad)
 
-
-def test_batch_order_invariance():
-    # Order-invariance test for classifier partial_fit
+@pytest.mark.parametrize(
+    "Classifier, attr",
+    [
+        (GFDLClassifier, "coeff_"),
+        (GFDLClassifier, "coeff_"),
+        (EnsembleGFDLClassifier, "coeffs_"),
+    ],
+)
+def test_batch_order_invariance(Classifier, attr):
+    # Order-invariance test for partial_fit
     X, y = make_classification(
         n_samples=400,
         n_features=20,
@@ -695,7 +665,7 @@ def test_batch_order_invariance():
         random_state=0,
     )
 
-    ff_model = GFDLClassifier(seed=0, reg_alpha=0.1)
+    ff_model = Classifier(seed=0, reg_alpha=0.1)
     pf_model = clone(ff_model)
 
     ff_model.fit(X, y)
@@ -713,46 +683,17 @@ def test_batch_order_invariance():
         else:
             pf_model.partial_fit(Xb, yb)
 
-    assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=4e-8, atol=2e-10)
+    assert_allclose(getattr(pf_model, attr), getattr(ff_model, attr), rtol=4e-8, atol=2e-10)
 
-
-def test_batch_order_invariance_ensemble():
-    # Order-invariance test for ensemble partial_fit
-    # Unfortunately because ensembleGFDL has its' own partial_fit()
-    # implementation and the difference in comparing coeffs we need
-    # to repeat a lot of tests
-    X, y = make_classification(
-        n_samples=400,
-        n_features=20,
-        n_informative=10,
-        n_redundant=5,
-        n_classes=2,
-        random_state=0,
-    )
-
-    ff_model = EnsembleGFDLClassifier(seed=0, reg_alpha=0.1)
-    pf_model = clone(ff_model)
-
-    ff_model.fit(X, y)
-
-    classes = np.unique(y)
-    batch = 25
-    rng = np.random.default_rng(0)
-    starts = rng.permutation(np.arange(0, len(X), batch))
-
-    for j, start in enumerate(starts):
-        end = min(start + batch, len(X))
-        Xb = X[start:end]
-        yb = y[start:end]
-        if j == 0:
-            pf_model.partial_fit(Xb, yb, classes=classes)
-        else:
-            pf_model.partial_fit(Xb, yb)
-
-    assert_allclose(pf_model.coeffs_, ff_model.coeffs_, rtol=4e-8, atol=2e-10)
-
-
-def test_batch_partition_invariance():
+@pytest.mark.parametrize(
+    "Classifier, attr",
+    [
+        (GFDLClassifier, "coeff_"),
+        (GFDLClassifier, "coeff_"),
+        (EnsembleGFDLClassifier, "coeffs_"),
+    ],
+)
+def test_batch_partition_invariance(Classifier, attr):
     # Partition-invariance test for partial_fit
     X, y = make_classification(
         n_samples=400,
@@ -762,7 +703,7 @@ def test_batch_partition_invariance():
         n_classes=2,
         random_state=0,
     )
-    pf1 = GFDLClassifier(seed=0, reg_alpha=0.1)
+    pf1 = Classifier(seed=0, reg_alpha=0.1)
     pf2 = clone(pf1)
 
     classes = np.unique(y)
@@ -775,41 +716,21 @@ def test_batch_partition_invariance():
     for s, e in zip(starts, ends, strict=False):
         pf2.partial_fit(X[s:e], y[s:e], classes=classes)
 
-    assert_allclose(pf1.coeff_, pf2.coeff_, rtol=1e-7, atol=1e-9)
+    assert_allclose(getattr(pf2,attr), getattr(pf1,attr), rtol=1e-7, atol=1e-9)
 
-
-def test_batch_partition_invariance_ensemble():
-    # Partition-invariance test for ensemble partial_fit
-    X, y = make_classification(
-        n_samples=400,
-        n_features=20,
-        n_informative=10,
-        n_redundant=5,
-        n_classes=2,
-        random_state=0,
-    )
-    pf1 = EnsembleGFDLClassifier(seed=0, reg_alpha=0.1)
-    pf2 = clone(pf1)
-
-    classes = np.unique(y)
-    for i in range(0, len(X), 10):
-        pf1.partial_fit(X[i : i + 10], y[i : i + 10], classes=classes)
-
-    cuts = [17, 61, 140]
-    starts = [0] + cuts
-    ends = cuts + [len(X)]
-    for s, e in zip(starts, ends, strict=False):
-        pf2.partial_fit(X[s:e], y[s:e], classes=classes)
-
-    for pf1_c, pf2_c in zip(pf1.coeffs_, pf2.coeffs_, strict=False):
-        assert_allclose(pf1_c, pf2_c, rtol=4e-8, atol=2e-10)
-
-
+@pytest.mark.parametrize(
+    "Classifier, attr",
+    [
+        (GFDLClassifier, "coeff_"),
+        (GFDLClassifier, "coeff_"),
+        (EnsembleGFDLClassifier, "coeffs_"),
+    ],
+)
 @pytest.mark.xfail(
     reason="partial_fit diverges from fit for ill-conditioned design matrices",
     strict=True,
 )
-def test_partial_fit_ill_conditioned():
+def test_partial_fit_ill_conditioned(Classifier, attr):
     # For direct_links=True and certain activations and weight combinations,
     # the design matrix becomes rank-deficient and the exact
     # solve can diverge from fit()
@@ -822,7 +743,7 @@ def test_partial_fit_ill_conditioned():
         random_state=0,
     )
 
-    ff_model = GFDLClassifier(
+    ff_model = Classifier(
         hidden_layer_sizes=(50, 50),
         activation="softmax",
         weight_scheme="range",
@@ -845,45 +766,4 @@ def test_partial_fit_ill_conditioned():
 
     # partial_fit() is expected to diverge from fit() given
     # these params
-    assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-3, atol=1e-3)
-
-
-@pytest.mark.xfail(
-    reason="partial_fit diverges from fit for ill-conditioned design matrices",
-    strict=True,
-)
-def test_partial_fit_ill_conditioned_ensemble():
-    # For direct_links=True and certain activations and weight combinations,
-    # the design matrix becomes rank-deficient and the exact
-    # solve can diverge from fit()
-
-    X, y = make_classification(
-        n_samples=100,
-        n_features=10,
-        n_informative=4,
-        n_classes=5,
-        random_state=0,
-    )
-
-    ff_model = EnsembleGFDLClassifier(
-        hidden_layer_sizes=(50, 50),
-        activation="softmax",
-        weight_scheme="range",
-        seed=0,
-        reg_alpha=None,
-    )
-    pf_model = clone(ff_model)
-
-    ff_model.fit(X, y)
-
-    classes = np.unique(y)
-    batch = 10
-    for start in range(0, len(X), batch):
-        end = min(start + batch, len(X))
-        if start == 0:
-            pf_model.partial_fit(X[start:end], y[start:end], classes=classes)
-        else:
-            pf_model.partial_fit(X[start:end], y[start:end])
-
-    # this should fail
-    assert_allclose(pf_model.coeffs_, ff_model.coeffs_, rtol=1e-2, atol=1e-2)
+    assert_allclose(getattr(pf_model,attr), getattr(ff_model,attr), rtol=1e-3, atol=1e-3)

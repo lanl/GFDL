@@ -184,3 +184,47 @@ def test_partial_fit_regressor(
         pf_model.partial_fit(Xb, yb)
 
     np.testing.assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-5, atol=4e-5)
+
+@pytest.mark.parametrize("reg_alpha, expected", [
+    (0.1, 0.7854487722792983),
+    # NOTE: for Moore-Penrose, a large singular value
+    # cutoff (rtol) is required to achieve reasonable R2 with
+    # the Boston Housing dataset
+    (None, -0.7553690096260643),
+])
+def test_partial_fit_boston(reg_alpha, expected):
+    # real-world data test with multi-layer RVFL
+    boston = fetch_openml(name="boston", version=1, as_frame=False)
+    X, y = boston.data, boston.target.astype(float)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=42,
+                                                        shuffle=True)
+
+    scaler = StandardScaler().fit(X_train)
+    X_train_s = scaler.transform(X_train)
+    X_test_s = scaler.transform(X_test)
+
+    model = GFDLRegressor(
+            hidden_layer_sizes=[800] * 2,
+            activation="tanh",
+            weight_scheme="uniform",
+            direct_links=1,
+            seed=0,
+            reg_alpha=reg_alpha,
+            rtol=1e-3,  # has no effect for `Ridge`
+        )
+    batch = 100
+    for start in range(0, len(X_train_s), batch):
+        end = min(start + batch, len(X_train_s))
+        model.partial_fit(X_train_s[start:end], y_train[start:end])
+    y_pred = model.predict(X_test_s)
+    # Note that we can reach the same score as the full fit using
+    # hidden_layer_sizes=[800] * 10 and reg_alpha=0.1,
+    # but it's terribly inefficient in the case of reg_alpha=None
+    # hence the reduced network size
+
+    # RandomForestRegressor() with default params scores
+    # 0.8733907 here; multi-layer GFDL with above params is a bit
+    # worse, but certainly better than random chance:
+    actual = r2_score(y_test, y_pred)
+    np.testing.assert_allclose(actual, expected)
