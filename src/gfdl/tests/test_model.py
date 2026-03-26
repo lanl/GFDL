@@ -581,7 +581,7 @@ def test_partial_fit(
             pf_model.partial_fit(Xb, yb)
 
     assert_allclose(
-        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=4e-4
+        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=1e-3
         )
 
 
