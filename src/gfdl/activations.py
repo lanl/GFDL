@@ -1,5 +1,5 @@
 """
-Activations functions for Gradient Free Deep Learning estimators.
+Activation functions for Gradient Free Deep Learning estimators.
 """
 
 import numpy as np
@@ -77,7 +77,7 @@ def identity(z):
     Returns
     -------
     numpy.ndarray
-        The output array same as input values.
+        The input array is returned unchanged.
     """
     return z
 
