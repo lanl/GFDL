@@ -3,6 +3,7 @@ Estimators for gradient free deep learning.
 """
 
 import numpy as np
+import scipy
 from scipy.special import logsumexp
 from scipy.stats import mode
 from sklearn.base import (
@@ -192,13 +193,19 @@ class GFDL(BaseEstimator):
         # or (sum_hidden, n_classes-1)
 
         # If reg_alpha is None, use direct solve using
-        # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
+        # MoorePenrose Pseudo-Inverse, otherwise use ridge regression.
+
+        # scipy.linalg.solve(self.A + reg_mat, self.B)
+        # is equivalent to
+        # ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False, solver='cholesky)
+        # ridge.fit(D_all[:current_batch], Y_all[:current_batch])
 
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.lstsq(self.A, self.B, rcond=self.rtol)[0]
+            pinv_A = np.linalg.pinv(self.A, rtol=self.rtol)
+            self.coeff_ = pinv_A @ self.B
         else:
-            reg = np.identity(self.A.shape[0]) * self.reg_alpha
-            self.coeff_ = np.linalg.lstsq(self.A + reg, self.B)[0]
+            reg_mat = np.eye(self.A.shape[0]) * self.reg_alpha
+            self.coeff_ = scipy.linalg.solve(self.A + reg_mat, self.B)
         if self.coeff_.ndim == 2 and self.coeff_.shape[1] == 1:
             self.coeff_ = self.coeff_.ravel()
         return self
@@ -636,13 +643,21 @@ class EnsembleGFDL(BaseEstimator):
             # or (sum_hidden, n_classes-1)
 
             # If reg_alpha is None, use direct solve using
-            # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
+            # MoorePenrose Pseudo-Inverse, otherwise use ridge regression.
+
+            # scipy.linalg.solve(self.A + reg_mat, self.B)
+            # is equivalent to
+            # ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False, solver='cholesky)
+            # ridge.fit(D_all[:current_batch], Y_all[:current_batch])
 
             if self.reg_alpha is None:
-                coef_ = np.linalg.lstsq(self.As[i], self.Bs[i], rcond=self.rtol)[0]
+                pinv_A = np.linalg.pinv(self.As[i], rtol=self.rtol)
+                coef_ = pinv_A @ self.Bs[i]
             else:
-                reg = np.identity(self.As[i].shape[0]) * self.reg_alpha
-                coef_ = np.linalg.lstsq(self.As[i] + reg, self.Bs[i])[0]
+                reg_mat = np.eye(
+                    self.As[i].shape[0], dtype=self.As[i].dtype
+                    ) * self.reg_alpha
+                coef_ = np.linalg.solve(self.As[i] + reg_mat, self.Bs[i])
 
             self.coeffs_.append(coef_)
 
