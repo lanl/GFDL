@@ -520,195 +520,6 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
         return out
 
-
-class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
-    """
-    Random vector functional link network regressor.
-
-    This model fits a feedforward neural network with fixed random hidden-layer
-    parameters and solves for the output weights using linear least squares or
-    ridge regression. When direct links are disabled, the model architecture corresponds
-    to an Extreme Learning Machine (ELM) architecture.
-
-    Parameters
-    ----------
-    hidden_layer_sizes : array-like of shape (n_layers,), default=(100,)
-        The ith element represents the number of neurons in the ith
-        hidden layer.
-
-    activation : str, default='identity'
-        Activation function for the hidden layers.
-
-        - 'identity', no-op activation, useful to implement linear bottleneck,
-          returns f(x) = x
-
-        - 'tanh': :func:`tanh <gfdl.activations.tanh>`.
-
-        - 'relu': :func:`relu <gfdl.activations.relu>`.
-
-        - 'sigmoid': :func:`sigmoid <gfdl.activations.sigmoid>`.
-
-        - 'softmax': :func:`softmax <gfdl.activations.softmax>`.
-
-        - 'softmin': :func:`softmin <gfdl.activations.softmin>`.
-
-        - 'log_sigmoid': :func:`log_sigmoid <gfdl.activations.log_sigmoid>`.
-
-        - 'log_softmax': :func:`log_softmax <gfdl.activations.log_softmax>`.
-
-    weight_scheme : str, default='uniform'
-        Distribution used to initialize the random hidden-layer weights.
-
-        The initialization functions generate weight matrices of shape
-        (n_hidden_units, n_features), where values are drawn
-        according to the selected scheme.
-
-        - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
-
-        - 'range': set weights to normalized np.arange
-          (:func:`range <gfdl.weights.range>`).
-
-        - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
-
-        - 'he_uniform': He uniform distribution
-          (:func:`he_uniform <gfdl.weights.he_uniform>`).
-
-        - 'lecun_uniform': Lecun uniform distribution
-          (:func:`lecun_uniform <gfdl.weights.lecun_uniform>`).
-
-        - 'glorot_uniform': Glorot uniform distribution
-          (:func:`glorot_uniform <gfdl.weights.glorot_uniform>`).
-
-        - 'normal': Normal distribution (:func:`normal <gfdl.weights.normal>`).
-
-        - 'he_normal': He normal distribution
-          (:func:`he_normal <gfdl.weights.he_normal>`).
-
-        - 'lecun_normal': Lecun normal distribution
-          (:func:`lecun_normal <gfdl.weights.lecun_normal>`).
-
-        - 'glorot_normal': Glorot normal distribution
-          (:func:`glorot_normal <gfdl.weights.glorot_normal>`).
-
-    direct_links : bool, default=True
-        Whether to connect input layer to output nodes.
-
-        When set to False, only the hidden-layer activations are used, corresponding
-        to the Extreme Learning Machine (ELM) architecture.
-
-    seed : int, RandomState instance, default=None
-        Determines random number generation for weights and bias
-        initialization.
-        Pass an int for reproducible results across multiple function calls.
-        See :term:`Glossary <random_state>`.
-
-    reg_alpha : float, default=None
-        Amount of ridge shrinkage to apply in order to improve
-        conditioning during Ridge regression. When set to zero or `None`,
-        model uses direct solve using Moore-Penrose Pseudo-Inverse.
-
-    rtol : float, default=None
-        Cutoff for small singular values for the Moore-Penrose
-        pseudo-inverse. Only applies when ``reg_alpha=None``.
-        When ``rtol=None``, the array API standard default for
-        ``pinv`` is used.
-
-    Attributes
-    ----------
-    n_features_in_ : int
-        Number of features seen during :term:`fit`.
-
-    W_ : list of ndarray of shape (n_layers,)
-        Weight matrices of the hidden layers. The ith element in the list represents the
-        weight matrix corresponding to layer i.
-
-    b_ : list of ndarray of shape (n_layers,)
-        Bias vectors of the hidden layers. The ith element in the list represents the
-        bias term corresponding to layer i.
-
-    coeff_ : ndarray of shape (n_features_out, n_outputs)
-        Output weight matrix learned by the fit method.
-
-    See Also
-    --------
-    GFDLClassifier : Classifier variant for the RVFL architecture.
-
-    Examples
-    --------
-    >>> from gfdl.model import GFDLRegressor
-    >>> from sklearn.datasets import make_regression
-    >>> from sklearn.model_selection import train_test_split
-    >>> X, y = make_regression(n_samples=200, n_features=20, random_state=1)
-    >>> X_train, X_test, y_train, y_test = train_test_split(X, y,
-    ...                                                     random_state=1)
-    >>> regr = GFDLRegressor(seed=1)
-    >>> regr.fit(X_train, y_train)
-    GFDLRegressor(seed=1)
-    >>> regr.predict(X_test[:2])
-    array([  18.368, -278.014])
-    """
-    def __init__(
-        self,
-        hidden_layer_sizes: np.typing.ArrayLike = (100,),
-        activation: str = "identity",
-        weight_scheme: str = "uniform",
-        direct_links: bool = True,
-        seed: int = None,
-        reg_alpha: float = None,
-        rtol: float | None = None,
-        gamma: float = None, 
-    ):
-        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
-                       activation=activation,
-                       weight_scheme=weight_scheme,
-                       direct_links=direct_links,
-                       seed=seed,
-                       reg_alpha=reg_alpha,
-                       rtol=rtol,
-                       gamma=gamma)
-
-    def fit(self, X, y, solver="ls-direct", **kwargs):
-        """
-        Train the gradient-free neural network on the training set (X, y).
-
-        Parameters
-        ----------
-
-        X : array-like of shape (n_samples, n_features)
-          The training input samples.
-        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
-          The target values.
-
-        Returns
-        -------
-        object
-          The fitted estimator.
-        """
-        X, Y = validate_data(self, X, y, multi_output=True)
-        super().fit(X, Y, solver=solver, **kwargs)
-        return self
-
-    def predict(self, X):
-        """
-        Predict regression target for X.
-
-        Parameters
-        ----------
-
-        X : array-like of shape (n_samples, n_features)
-          The input samples.
-
-        Returns
-        -------
-        ndarray
-          The predicted values. Should have shape (n_samples,) or
-          (n_samples, n_outputs).
-        """
-        check_is_fitted(self)
-        X = validate_data(self, X, reset=False)
-        return super().predict(X)
-
-
 class EnsembleGFDL(BaseEstimator):
     """Base class for ensemble GFDL model for classification and regression."""
     def __init__(
@@ -1029,3 +840,191 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         votes = np.stack(votes, axis=1)
         m = mode(votes, axis=1, keepdims=False)
         return m.mode
+
+class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
+    """
+    Random vector functional link network regressor.
+
+    This model fits a feedforward neural network with fixed random hidden-layer
+    parameters and solves for the output weights using linear least squares or
+    ridge regression. When direct links are disabled, the model architecture corresponds
+    to an Extreme Learning Machine (ELM) architecture.
+
+    Parameters
+    ----------
+    hidden_layer_sizes : array-like of shape (n_layers,), default=(100,)
+        The ith element represents the number of neurons in the ith
+        hidden layer.
+
+    activation : str, default='identity'
+        Activation function for the hidden layers.
+
+        - 'identity', no-op activation, useful to implement linear bottleneck,
+          returns f(x) = x
+
+        - 'tanh': :func:`tanh <gfdl.activations.tanh>`.
+
+        - 'relu': :func:`relu <gfdl.activations.relu>`.
+
+        - 'sigmoid': :func:`sigmoid <gfdl.activations.sigmoid>`.
+
+        - 'softmax': :func:`softmax <gfdl.activations.softmax>`.
+
+        - 'softmin': :func:`softmin <gfdl.activations.softmin>`.
+
+        - 'log_sigmoid': :func:`log_sigmoid <gfdl.activations.log_sigmoid>`.
+
+        - 'log_softmax': :func:`log_softmax <gfdl.activations.log_softmax>`.
+
+    weight_scheme : str, default='uniform'
+        Distribution used to initialize the random hidden-layer weights.
+
+        The initialization functions generate weight matrices of shape
+        (n_hidden_units, n_features), where values are drawn
+        according to the selected scheme.
+
+        - 'zeros': set weights to zeros (:func:`zeros <gfdl.weights.zeros>`).
+
+        - 'range': set weights to normalized np.arange
+          (:func:`range <gfdl.weights.range>`).
+
+        - 'uniform': uniform distribution (:func:`uniform <gfdl.weights.uniform>`).
+
+        - 'he_uniform': He uniform distribution
+          (:func:`he_uniform <gfdl.weights.he_uniform>`).
+
+        - 'lecun_uniform': Lecun uniform distribution
+          (:func:`lecun_uniform <gfdl.weights.lecun_uniform>`).
+
+        - 'glorot_uniform': Glorot uniform distribution
+          (:func:`glorot_uniform <gfdl.weights.glorot_uniform>`).
+
+        - 'normal': Normal distribution (:func:`normal <gfdl.weights.normal>`).
+
+        - 'he_normal': He normal distribution
+          (:func:`he_normal <gfdl.weights.he_normal>`).
+
+        - 'lecun_normal': Lecun normal distribution
+          (:func:`lecun_normal <gfdl.weights.lecun_normal>`).
+
+        - 'glorot_normal': Glorot normal distribution
+          (:func:`glorot_normal <gfdl.weights.glorot_normal>`).
+
+    direct_links : bool, default=True
+        Whether to connect input layer to output nodes.
+
+        When set to False, only the hidden-layer activations are used, corresponding
+        to the Extreme Learning Machine (ELM) architecture.
+
+    seed : int, RandomState instance, default=None
+        Determines random number generation for weights and bias
+        initialization.
+        Pass an int for reproducible results across multiple function calls.
+        See :term:`Glossary <random_state>`.
+
+    reg_alpha : float, default=None
+        Amount of ridge shrinkage to apply in order to improve
+        conditioning during Ridge regression. When set to zero or `None`,
+        model uses direct solve using Moore-Penrose Pseudo-Inverse.
+
+    rtol : float, default=None
+        Cutoff for small singular values for the Moore-Penrose
+        pseudo-inverse. Only applies when ``reg_alpha=None``.
+        When ``rtol=None``, the array API standard default for
+        ``pinv`` is used.
+
+    Attributes
+    ----------
+    n_features_in_ : int
+        Number of features seen during :term:`fit`.
+
+    W_ : list of ndarray of shape (n_layers,)
+        Weight matrices of the hidden layers. The ith element in the list represents the
+        weight matrix corresponding to layer i.
+
+    b_ : list of ndarray of shape (n_layers,)
+        Bias vectors of the hidden layers. The ith element in the list represents the
+        bias term corresponding to layer i.
+
+    coeff_ : ndarray of shape (n_features_out, n_outputs)
+        Output weight matrix learned by the fit method.
+
+    See Also
+    --------
+    GFDLClassifier : Classifier variant for the RVFL architecture.
+
+    Examples
+    --------
+    >>> from gfdl.model import GFDLRegressor
+    >>> from sklearn.datasets import make_regression
+    >>> from sklearn.model_selection import train_test_split
+    >>> X, y = make_regression(n_samples=200, n_features=20, random_state=1)
+    >>> X_train, X_test, y_train, y_test = train_test_split(X, y,
+    ...                                                     random_state=1)
+    >>> regr = GFDLRegressor(seed=1)
+    >>> regr.fit(X_train, y_train)
+    GFDLRegressor(seed=1)
+    >>> regr.predict(X_test[:2])
+    array([  18.368, -278.014])
+    """
+    def __init__(
+        self,
+        hidden_layer_sizes: np.typing.ArrayLike = (100,),
+        activation: str = "identity",
+        weight_scheme: str = "uniform",
+        direct_links: bool = True,
+        seed: int = None,
+        reg_alpha: float = None,
+        rtol: float | None = None,
+        gamma: float = None, 
+    ):
+        super().__init__(hidden_layer_sizes=hidden_layer_sizes,
+                       activation=activation,
+                       weight_scheme=weight_scheme,
+                       direct_links=direct_links,
+                       seed=seed,
+                       reg_alpha=reg_alpha,
+                       rtol=rtol,
+                       gamma=gamma)
+
+    def fit(self, X, y, solver="ls-direct", **kwargs):
+        """
+        Train the gradient-free neural network on the training set (X, y).
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The training input samples.
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+          The target values.
+
+        Returns
+        -------
+        object
+          The fitted estimator.
+        """
+        X, Y = validate_data(self, X, y, multi_output=True)
+        super().fit(X, Y, solver=solver, **kwargs)
+        return self
+
+    def predict(self, X):
+        """
+        Predict regression target for X.
+
+        Parameters
+        ----------
+
+        X : array-like of shape (n_samples, n_features)
+          The input samples.
+
+        Returns
+        -------
+        ndarray
+          The predicted values. Should have shape (n_samples,) or
+          (n_samples, n_outputs).
+        """
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        return super().predict(X)
+
