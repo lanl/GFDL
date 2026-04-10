@@ -23,7 +23,7 @@ from gfdl.weights import WEIGHTS
 @pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize("direct_links", [0, 1])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
-@pytest.mark.parametrize("weight_scheme", list(WEIGHTS.keys()))
+@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
 def test_model(hidden_layer_sizes, n_classes, activation, weight_scheme, direct_links):
     N, d = 60, 10
     X, y = make_classification(n_samples=N,
@@ -67,7 +67,7 @@ def test_model(hidden_layer_sizes, n_classes, activation, weight_scheme, direct_
     np.testing.assert_array_equal(pred, model.classes_[np.argmax(P, axis=1)])
 
 
-@pytest.mark.parametrize("weight_scheme", list(WEIGHTS.keys()))
+@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
 @pytest.mark.parametrize(
         "hidden_layer_size",
         [(10,), (2, 3, 2, 1), (5, 10, 15, 20, 15, 10), (100,)]
@@ -660,7 +660,6 @@ def test_partial_fit_classes_error(Classifier):
     "Classifier, attr",
     [
         (GFDLClassifier, "coeff_"),
-        (GFDLClassifier, "coeff_"),
         (EnsembleGFDLClassifier, "coeffs_"),
     ],
 )
@@ -702,7 +701,6 @@ def test_batch_order_invariance(Classifier, attr):
     "Classifier, attr",
     [
         (GFDLClassifier, "coeff_"),
-        (GFDLClassifier, "coeff_"),
         (EnsembleGFDLClassifier, "coeffs_"),
     ],
 )
@@ -735,7 +733,6 @@ def test_batch_partition_invariance(Classifier, attr):
 @pytest.mark.parametrize(
     "Classifier, attr",
     [
-        (GFDLClassifier, "coeff_"),
         (GFDLClassifier, "coeff_"),
         (EnsembleGFDLClassifier, "coeffs_"),
     ],
