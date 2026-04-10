@@ -586,23 +586,35 @@ def test_partial_fit(
 
 
 @pytest.mark.parametrize(
-    "Classifier, ridge_alpha, expected",
+    "Classifier, ridge_alpha, rcond, expected",
     [
-        (GFDLClassifier, 0.1, 0.956140350877193),
         # NOTE: for Moore-Penrose, a large singular value
-        # cutoff (rcond) is required to achieve reasonable accuracy
-        # with the Wisconsin breast cancer dataset
-        # Without rtol accuracy ~= 0.6316
-        (GFDLClassifier, None, 0.9736842105263158),
-        (EnsembleGFDLClassifier, 0.1, 0.956140350877193),
+        # cutoff (rcond) or alpha regularization is required
+        # to achieve reasonable accuracy
+        # Without rtol or reg accuracy ~= 0.7368
+        # With reg accuracy ~= 0.9649
+        # With rtol accuracy ~= 0.9474
+        (GFDLClassifier, 5, None, 0.9649122807017544),
+        (GFDLClassifier, None, None, 0.7368421052631579),
+        (GFDLClassifier, None, 1e-3, 0.9473684210526315),
+
         # NOTE: for Moore-Penrose, a large singular value
-        # cutoff (rcond) is required to achieve reasonable accuracy
-        # with the Wisconsin breast cancer dataset
-        # Without rtol accuracy ~= 0.7193
-        (EnsembleGFDLClassifier, None, 0.956140350877193),
+        # cutoff (rcond) or alpha regularization is required
+        # to achieve reasonable accuracy
+        # Without rtol or reg accuracy ~= 0.7368
+        # With reg accuracy ~= 0.9649
+        # With rtol accuracy ~= 0.9474
+        (EnsembleGFDLClassifier, 5, None, 0.9649122807017544),
+        (EnsembleGFDLClassifier, None, None, 0.7368421052631579),
+        (EnsembleGFDLClassifier, None, 1e-3, 0.9473684210526315),
+        # NOTE: this behavior may be exacerbated by using shallower,
+        # wider networks
+        # With this dataset in particular we're achieving better accuracies
+        # with smaller architectures, but for the sake of this test
+        # we're using a shallow and wide architecture
     ],
 )
-def test_rtol_partial_fit(Classifier, ridge_alpha, expected):
+def test_partial_fit_performance(Classifier, ridge_alpha, rcond, expected):
     X, y = load_breast_cancer(return_X_y=True)
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -615,16 +627,16 @@ def test_rtol_partial_fit(Classifier, ridge_alpha, expected):
     classes = np.unique(y)
 
     model = Classifier(
-        hidden_layer_sizes=[800]
-        * 2,  # partial_fit is slow so smaller network for speed
-        activation="sigmoid",
+        hidden_layer_sizes=[1000]
+        * 1,  # partial_fit is slow so smaller network for speed
+        activation="tanh",
         weight_scheme="uniform",
         seed=0,
         reg_alpha=ridge_alpha,
-        rtol=1e-6,
+        rtol=rcond,
     )
 
-    batch = 50
+    batch = 20
     for start in range(0, X_train.shape[0], batch):
         end = min(start + batch, X_train.shape[0])
         if start == 0:
@@ -633,7 +645,7 @@ def test_rtol_partial_fit(Classifier, ridge_alpha, expected):
             model.partial_fit(X_train[start:end], y_train[start:end])
 
     actual = model.score(X_test, y_test)
-    # RandomForestRegressor() with default params scores 0.958 here
+    # RandomForestClassifier() with default params scores 0.973 here
     # RVFL with above params scores comparatively:
     assert_allclose(actual, expected)
 
