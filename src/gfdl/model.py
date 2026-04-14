@@ -1,7 +1,6 @@
 """
 Estimators for gradient free deep learning.
 """
-import pdb 
 import numpy as np
 from scipy.special import logsumexp
 from scipy.stats import mode
@@ -32,7 +31,7 @@ class GFDL(BaseEstimator):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float | None = None,
-        gamma: float = None, 
+        gamma: float | np.typing.ArrayLike | None = None,
     ):
         self.hidden_layer_sizes = hidden_layer_sizes
         self.activation = activation
@@ -75,51 +74,35 @@ class GFDL(BaseEstimator):
                 self._weight_mode(1, layer, rng=rng,).reshape(-1)
                 )
 
-    def _construct_Hs(self, X): 
+    def _construct_Hs(self, X):
         # hypothesis space shape: (n_layers,)
+        if self.gamma is not None:
+            if np.isscalar(self.gamma):
+                gamma = self.gamma
+            else:
+                gamma = np.asarray(self.gamma)
+
         Hs = []
         H_prev = X
-        for w, b in zip(self.W_, self.b_, strict=True):
+        for i, (w, b) in enumerate(zip(self.W_, self.b_, strict=True)):
             Z = H_prev @ w.T + b  # (n_samples, n_hidden)
             H_prev = self._activation_fn(Z)
             if self.gamma is not None:
-                H_prev *= 1.0 / (H_prev.shape[1] ** self.gamma)
+                if np.isscalar(self.gamma):
+                    H_prev *= 1.0 / (H_prev.shape[1] ** gamma)
+                else:
+                    H_prev *= 1.0 / (H_prev.shape[1] ** self.gamma[i])
+
             Hs.append(H_prev)
-        return Hs    
+        return Hs
 
-
-    def fit(self, X, Y, solver="ls-direct", **kwargs):
+    def fit(self, X, Y):
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
         # Y shape: (n_samples, n_classes-1)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        
-        if solver == "ls-direct" and len(kwargs) > 0:
-            raise ValueError("No extra arguments are needed when solver is direct. ")
-        
-        if solver == "ls-sgd":
-            print(kwargs)
-            options = {'lr' : 0.0001, 'max_epochs' : 10000, 'batch_size' : 1, 'shuffle' : True, 'stol' : 1e-04}
-            options.update(kwargs)
-            self.lr = options['lr']
-            self.max_epochs = options['max_epochs']
-            self.batch_size = options['batch_size']
-            self.shuffle = options['shuffle']
-            self.stol = options['stol']
-            print("SGD Details : lr = ", self.lr, ", max_epochs = ", self.max_epochs, ", batch_size = ", self.batch_size, ", shuffle = ", self.shuffle, ", stol = ", self.stol)
 
-
-        if solver == "ls-gd":
-            print(kwargs)
-            options = {'lr' : 0.0001, 'max_iterations' : 100000, 'stol' : 1e-04}
-            options.update(kwargs)
-            self.lr = options['lr']
-            self.max_iterations = options['max_iterations']
-            self.stol = options['stol']
-            print("GD Details : lr = ", self.lr, ", max_iterations = ", self.max_iterations, ", stol = ", self.stol)
-
-        
         self._init_weights(X)
         self.Hs_ = self._construct_Hs(X)
 
@@ -135,14 +118,7 @@ class GFDL(BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
-            if solver == "ls-direct": 
-                self.coeff_ = np.linalg.pinv(self.D_, rtol=self.rtol) @ Y
-            elif solver == "ls-sgd":
-                self.stochastic_gradient_descent(self.D_, Y)
-                self.coeff_ = self.sgd_coeffs_
-            elif solver == "ls-gd": 
-                self.gradient_descent(self.D_, Y)
-                self.coeff_ = self.gd_coeffs_
+            self.coeff_ = np.linalg.pinv(self.D_, rtol=self.rtol) @ Y
         else:
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
             ridge.fit(self.D_, Y)
@@ -162,141 +138,6 @@ class GFDL(BaseEstimator):
 
     def get_generator(self, seed):
         return np.random.default_rng(seed)
-
- 
-    def stochastic_gradient_descent(self, X, y):    
-
-        nsamples, infeatures = X.shape
-
-        y = np.asarray(y)
-        #print(y.ndim)
-        if y.ndim == 1: 
-            y = y.reshape(-1,1)
-              
-        self.sgd_coeffs_ = np.zeros((infeatures, 1), dtype=float)  
-        self.sgd_coeffs_all_ = []
-        self.sgd_coeffs_all_.append(self.sgd_coeffs_)
-
-
-        rng = self.get_generator(self.seed)
-        self.sgd_history = {"loss": [], "grad_norm": [], "rel_sol_err": []}
-
-        #pdb.set_trace()
-
-        t = 0  # update counter
-        # Loop over epochs, each epoch loops through the entire dataset once. 
-        epoch = 0 
-        while epoch < self.max_epochs:
-            self.sgd_coeffs_old_ = self.sgd_coeffs_.copy()
-
-            idx = np.arange(nsamples)
-            if self.shuffle:
-                rng.shuffle(idx)
-
-            # Loop over the entire dataset in batches of "batch_size"
-            for start in range(0, nsamples, self.batch_size):
-                batch_idx = idx[start : start + self.batch_size]
-                Xb = X[batch_idx]
-                yb = y[batch_idx]
-                m = Xb.shape[0]
-
-                # minibatch loss  (Xb w - yb)
-                residual = Xb @ self.sgd_coeffs_ - yb
-
-                # averaged gradient (1/m) Xb^T (Xb w - yb)
-                grad = (Xb.T @ residual) / m
-
-                '''
-                print("Xb.shape : ",Xb.shape)
-                print("yb.shape : ", yb.shape)
-                print("residual.shape : ", residual.shape)
-                print("grad.shape : ", grad.shape)
-                print("coeffs.shape : ", self.sgd_coeffs_.shape)
-                print("batch residual = ", residual)
-                print("batch gradient = ", grad)
-                '''
-              
-                # update coeffs 
-                self.sgd_coeffs_ -= self.lr * grad
-                t += 1
-                self.sgd_coeffs_all_.append(self.sgd_coeffs_)
-
-                #print("updates coeffs = ", self.sgd_coeffs_)
-
-            # Track full-data loss once per epoch (cheap enough for small/medium n)
-            r = X @ self.sgd_coeffs_ - y
-            loss = 0.5 * float((r.T @ r) / nsamples)
-            
-            # Full gradient norm (optional diagnostic)
-            full_grad = (X.T @ r) / nsamples
-            grad_norm = np.linalg.norm(full_grad)
-
-            # Relative change in solution 
-            rel_coeffs_err = np.linalg.norm(self.sgd_coeffs_-self.sgd_coeffs_old_, ord = "fro")/(np.linalg.norm(self.sgd_coeffs_old_, ord="fro")+ 1e-12)
-
-           
-            self.sgd_history["loss"].append(loss)
-            self.sgd_history["grad_norm"].append(grad_norm)
-            self.sgd_history["rel_sol_err"].append(rel_coeffs_err)
-            print(f"[SGD] epoch={epoch:3d} loss={loss:.3e} ||grad||={grad_norm:.3e} rel_sol_err={rel_coeffs_err:2.10e}")
-
-            
-            #if rel_coeffs_err < self.stol:
-                #pdb.set_trace()
-            #    return self 
-            
-            if  grad_norm< self.stol:
-                return self 
-            
-            epoch += 1 
-
-        return self
-
-    def gradient_descent(self, X, y):
-        n, d = X.shape
-        #print(X.shape)
-        self.gd_coeffs_ = np.zeros((d, 1), dtype=float)
-        self.gd_coeffs_all_ = []
-        self.gd_coeffs_all_.append(self.gd_coeffs_)
-
-        y = np.asarray(y)
-        if y.ndim == 1: 
-            y = y.reshape(-1,1)
-
-        self.gd_history = {"loss": [], "grad_norm": [], "rel_sol_err": []}
-
-        it = 0
-        while it < self.max_iterations:
-            residual = X @ self.gd_coeffs_ - y
-            mse = 0.5 * ((residual.T @ residual) / n) 
-            grad = (X.T @ residual) / n
-            grad_norm = np.linalg.norm(grad, "fro")
-
-            '''
-            print("X.shape : ",X.shape)
-            print("y.shape : ", y.shape)
-            print("residual.shape : ", residual.shape)
-            print("grad.shape : ", grad.shape)
-            print("coeffs.shape : ", self.gd_coeffs_.shape)
-            print("loss.shape : ", loss.shape)
-            '''
-
-            self.gd_history["loss"].append(mse)
-            self.gd_history["grad_norm"].append(grad_norm)
-
-            denom = np.linalg.norm(self.gd_coeffs_, "fro") + 1e-12
-            if grad_norm / denom < self.stol:
-                print(f"[GD] converged iter={it}, loss={float(mse):.3e}, grad_norm={grad_norm:.3e}, rel_err = {grad_norm/denom:2.10}")
-                break
-
-            self.gd_coeffs_ -= self.lr * grad
-            self.gd_coeffs_all_.append(self.gd_coeffs_)
-
-     
-            print(f"[GD] iter={it:5d} loss={float(mse):.3e} grad_norm={grad_norm:.3e}, rel_err = {grad_norm/denom:2.10}")
-            it += 1 
-
-        return self
 
 
 class GFDLClassifier(ClassifierMixin, GFDL):
@@ -436,7 +277,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float = None,
-        gamma: float = None, 
+        gamma: float | np.typing.ArrayLike | None = None,
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
@@ -447,7 +288,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
                        rtol=rtol,
                        gamma=gamma)
 
-    def fit(self, X, y, solver="ls-direct", **kwargs):
+    def fit(self, X, y):
         """
         Build a gradient-free neural network from the training set (X, y).
 
@@ -475,7 +316,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         Y = self.enc_.fit_transform(Y.reshape(-1, 1))
 
         # call base fit method
-        super().fit(X, Y, solver=solver, **kwargs)
+        super().fit(X, Y)
         return self
 
     def predict(self, X):
@@ -519,6 +360,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         out = super().predict(X)
         out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
         return out
+
 
 class EnsembleGFDL(BaseEstimator):
     """Base class for ensemble GFDL model for classification and regression."""
@@ -841,6 +683,7 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         m = mode(votes, axis=1, keepdims=False)
         return m.mode
 
+
 class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
     """
     Random vector functional link network regressor.
@@ -976,7 +819,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float | None = None,
-        gamma: float = None, 
+        gamma: float | np.typing.ArrayLike | None = None,
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
@@ -987,7 +830,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
                        rtol=rtol,
                        gamma=gamma)
 
-    def fit(self, X, y, solver="ls-direct", **kwargs):
+    def fit(self, X, y):
         """
         Train the gradient-free neural network on the training set (X, y).
 
@@ -1005,7 +848,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
           The fitted estimator.
         """
         X, Y = validate_data(self, X, y, multi_output=True)
-        super().fit(X, Y, solver=solver, **kwargs)
+        super().fit(X, Y)
         return self
 
     def predict(self, X):
@@ -1027,4 +870,3 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         return super().predict(X)
-
