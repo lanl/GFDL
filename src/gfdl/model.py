@@ -81,6 +81,9 @@ class GFDL(BaseEstimator):
                 gamma = self.gamma
             else:
                 gamma = np.asarray(self.gamma)
+                if len(gamma) != len(self.W_):
+                    raise ValueError("Mismatch between number of gamma values passed "
+                    "and the total number of hidden layers. Expect them to be equal.")
 
         Hs = []
         H_prev = X
@@ -230,6 +233,13 @@ class GFDLClassifier(ClassifierMixin, GFDL):
       pseudo-inverse. Only applies when ``reg_alpha=None``.
       When ``rtol=None``, the array API standard default for
       ``pinv`` is used.
+
+    gamma : float, np.typing.ArrayLike, None, default = None
+        Scaling factor to normalize the output of one layer
+        before inputting to the next layer. None implies no
+        scaling is applied. A single value implies applying
+        the scaling each layer with the same value. For different
+        gammas per layer, pass an array like type.
 
     Attributes
     ----------
@@ -775,6 +785,13 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         pseudo-inverse. Only applies when ``reg_alpha=None``.
         When ``rtol=None``, the array API standard default for
         ``pinv`` is used.
+
+    gamma : float, np.typing.ArrayLike, None, default = None
+        Scaling factor to normalize the output of one layer
+        before inputting to the next layer. None implies no
+        scaling is applied. A single value implies applying
+        the scaling each layer with the same value. For different
+        gammas per layer, pass an array like type.
 
     Attributes
     ----------

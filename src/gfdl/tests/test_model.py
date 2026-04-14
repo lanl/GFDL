@@ -516,3 +516,57 @@ def test_rtol_ensemble(reg_alpha, rtol, expected_acc, expected_roc):
 
     np.testing.assert_allclose(acc_cur, expected_acc)
     np.testing.assert_allclose(roc_cur, expected_roc, atol=1e-05)
+
+
+@pytest.mark.parametrize("gamma, weight_scheme, expected_acc, expected_roc", [
+     (None, "normal", 0.9472222222222222, 0.9889187266963562),
+    (0.5, "normal", 0.9638888888888889, 0.9936661671672866),
+    ([0.5, 0.5, 0.5, 0.5], "he_normal", 0.975, 0.9952345941275027),
+])
+def test_gamma_scaling_classifier(gamma, weight_scheme, expected_acc, expected_roc):
+    # Tests that gamma scaling does improve the accuracy score for the digits
+    # dataset.
+    data = load_digits()
+    X, y = data.data, data.target
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+
+    scaler = StandardScaler().fit(X_train)
+    X_train_s = scaler.transform(X_train)
+    X_test_s = scaler.transform(X_test)
+
+    model = GFDLClassifier(hidden_layer_sizes=[100] * 4,
+            activation="sigmoid",
+            weight_scheme=weight_scheme,
+            seed=0,
+            gamma=gamma)
+    model.fit(X_train_s, y_train)
+
+    y_hat_cur = model.predict(X_test_s)
+    y_hat_cur_proba = model.predict_proba(X_test_s)
+
+    acc_cur = accuracy_score(y_test, y_hat_cur)
+    roc_cur = roc_auc_score(y_test, y_hat_cur_proba, multi_class="ovo")
+
+    np.testing.assert_allclose(acc_cur, expected_acc)
+    np.testing.assert_allclose(roc_cur, expected_roc)
+
+
+def test_gamma_scaling_size_mismatch_classifier():
+    # Test size mismatch exception between list of gamma's
+    # passed when using the array-like input.
+    data = load_digits()
+    X, y = data.data, data.target
+    X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2,
+                                                        random_state=0)
+
+    scaler = StandardScaler().fit(X_train)
+    X_train_s = scaler.transform(X_train)
+    model = GFDLClassifier(hidden_layer_sizes=[100] * 4,
+            activation="sigmoid",
+            weight_scheme="normal",
+            seed=0,
+            gamma=[0.5, 0.7])
+    with pytest.raises(ValueError, match="Mismatch between number of gamma values"
+    " passed and the total number of hidden layers. Expect them to be equal."):
+        model.fit(X_train_s, y_train)
