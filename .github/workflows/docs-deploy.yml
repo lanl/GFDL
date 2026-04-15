@@ -42,7 +42,7 @@ jobs:
 
     # needed for pages deployment from the main or the deployment test branch
     - name: upload pages artifacts
-      uses: actions/upload-pages-artifact@v4
+      uses: actions/upload-pages-artifact@v5
       with:
         path: docs/build/html  
 
