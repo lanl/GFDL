@@ -140,3 +140,14 @@ def test_regression_boston(reg_alpha, expected):
     # worse, but certainly better than random chance:
     actual = r2_score(y_test, y_pred)
     np.testing.assert_allclose(actual, expected)
+
+
+@pytest.mark.parametrize("hidden_layer_sizes", [
+    (-1, -1, -1),
+    (0, 1, 1),
+])
+def test_gh_85_regressor(hidden_layer_sizes):
+    X, y = make_regression(random_state=42)
+    model = GFDLRegressor(hidden_layer_sizes=hidden_layer_sizes, seed=0)
+    with pytest.raises(ValueError, match="must be > 0"):
+        model.fit(X, y)
