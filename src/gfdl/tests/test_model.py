@@ -516,3 +516,15 @@ def test_rtol_ensemble(reg_alpha, rtol, expected_acc, expected_roc):
 
     np.testing.assert_allclose(acc_cur, expected_acc)
     np.testing.assert_allclose(roc_cur, expected_roc, atol=1e-05)
+
+
+@pytest.mark.parametrize("hidden_layer_sizes", [
+    (-1, -1, -1),
+    (0, 1, 1),
+])
+@pytest.mark.parametrize("classifier", [GFDLClassifier, EnsembleGFDLClassifier])
+def test_gh_85_classifiers(hidden_layer_sizes, classifier):
+    X, y = make_classification(random_state=42)
+    clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
+    with pytest.raises(ValueError, match="must be > 0"):
+        clf.fit(X, y)
