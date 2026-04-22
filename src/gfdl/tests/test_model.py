@@ -792,3 +792,15 @@ def test_partial_fit_ill_conditioned(Classifier, attr):
     assert_allclose(
         getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-3, atol=1e-3
         )
+
+
+@pytest.mark.parametrize("hidden_layer_sizes", [
+    (-1, -1, -1),
+    (0, 1, 1),
+])
+@pytest.mark.parametrize("classifier", [GFDLClassifier, EnsembleGFDLClassifier])
+def test_gh_85_classifiers(hidden_layer_sizes, classifier):
+    X, y = make_classification(random_state=42)
+    clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
+    with pytest.raises(ValueError, match="must be > 0"):
+        clf.fit(X, y)
