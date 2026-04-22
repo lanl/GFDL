@@ -32,25 +32,18 @@ class GFDL(BaseEstimator):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float | None = None,
+        gamma: np.typing.ArrayLike | None = None,
     ):
-        self.hidden_layer_sizes = hidden_layer_sizes
+        self.hidden_layer_sizes = np.asarray(hidden_layer_sizes)
         self.activation = activation
         self.direct_links = direct_links
         self.seed = seed
         self.weight_scheme = weight_scheme
         self.reg_alpha = reg_alpha
         self.rtol = rtol
+        self.gamma = gamma
 
-    def fit(self, X, Y):
-        # Assumption : X, Y have been pre-processed.
-        # X shape: (n_samples, n_features)
-        # Y shape: (n_samples, n_classes-1)
-        if self.reg_alpha is not None and self.reg_alpha < 0.0:
-            raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
-        if hidden_layer_sizes.min() < 1:
-            raise ValueError("hidden_layer_sizes must be > 0, "
-                             f"got {hidden_layer_sizes}")
+    def _init_weights(self, X):
         fn = resolve_activation(self.activation)[1]
         self._activation_fn = fn
         self._N = X.shape[1]
@@ -64,36 +57,66 @@ class GFDL(BaseEstimator):
 
         self.W_.append(
             self._weight_mode(
-                self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+                self._N, self.hidden_layer_sizes[0], rng=self.get_generator(self.seed)
                 )
             )
         self.b_.append(
-            self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
+            self._weight_mode(1, self.hidden_layer_sizes[0], rng=rng)
             .reshape(-1)
             )
-        for i, layer in enumerate(hidden_layer_sizes[1:]):
+        for i, layer in enumerate(self.hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(
-                self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,)
+                self._weight_mode(self.hidden_layer_sizes[i], layer, rng=rng,)
                 )
             # (n_hidden,)
             self.b_.append(
                 self._weight_mode(1, layer, rng=rng,).reshape(-1)
                 )
 
+    def _construct_Hs(self, X):
         # hypothesis space shape: (n_layers,)
         Hs = []
         H_prev = X
-        for w, b in zip(self.W_, self.b_, strict=False):
+        for i, (w, b) in enumerate(zip(self.W_, self.b_, strict=True)):
             Z = H_prev @ w.T + b  # (n_samples, n_hidden)
             H_prev = self._activation_fn(Z)
+            if self.gamma is not None:
+                H_prev *= 1.0 / (H_prev.shape[1] ** self.gamma[i])
+
             Hs.append(H_prev)
+        return Hs
+
+    def fit(self, X, Y):
+        # Assumption : X, Y have been pre-processed.
+        # X shape: (n_samples, n_features)
+        # Y shape: (n_samples, n_classes-1)
+        if self.reg_alpha is not None and self.reg_alpha < 0.0:
+            raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
+        if self.hidden_layer_sizes.min() < 1:
+            raise ValueError("hidden_layer_sizes must be > 0, "
+                             f"got {self.hidden_layer_sizes}")
+        if self.gamma is not None:
+            if not np.isscalar(self.gamma):
+                if len(self.gamma) != len(self.hidden_layer_sizes):
+                    raise ValueError("Mismatch between number of gamma values passed "
+                    "and the total number of hidden layers. Expect them to be equal.")
+            else:
+                self.gamma = np.ones(len(self.hidden_layer_sizes)) * self.gamma
+
+            self.gamma = np.asarray(self.gamma, dtype=float)
+            if np.any((self.gamma > 1.0) | (self.gamma < 0.5)):
+                raise ValueError("Out of range gamma. Expected range : "
+                "None or [0.5, 1.0].")
+
+        self._init_weights(X)
+        self.Hs_ = self._construct_Hs(X)
 
         # design matrix shape: (n_samples, sum_hidden+n_features)
         # or (n_samples, sum_hidden)
         if self.direct_links:
-            Hs.append(X)
-        D = np.hstack(Hs)
+            self.Hs_.append(X)
+        self.D_ = np.hstack(self.Hs_)
 
         # beta shape: (sum_hidden+n_features, n_classes-1)
         # or (sum_hidden, n_classes-1)
@@ -101,21 +124,16 @@ class GFDL(BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.pinv(D, rtol=self.rtol) @ Y
+            self.coeff_ = np.linalg.pinv(self.D_, rtol=self.rtol) @ Y
         else:
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
-            ridge.fit(D, Y)
+            ridge.fit(self.D_, Y)
             self.coeff_ = ridge.coef_.T
         return self
 
     def predict(self, X):
         check_is_fitted(self)
-        Hs = []
-        H_prev = X
-        for W, b in zip(self.W_, self.b_, strict=False):
-            Z = H_prev @ W.T + b  # (n, m)
-            H_prev = self._activation_fn(Z)
-            Hs.append(H_prev)
+        Hs = self._construct_Hs(X)
 
         if self.direct_links:
             Hs.append(X)
@@ -219,6 +237,14 @@ class GFDLClassifier(ClassifierMixin, GFDL):
       When ``rtol=None``, the array API standard default for
       ``pinv`` is used.
 
+    gamma : np.typing.ArrayLike, None, default = None
+        Scaling factor to normalize the output of one layer
+        before inputting to the next layer. None implies no
+        scaling is applied. A single value implies applying
+        the scaling to each layer with the same value. For
+        different gammas per layer, pass an array with the
+        same size as `hidden_layer_sizes`.
+
     Attributes
     ----------
     n_features_in_ : int
@@ -264,7 +290,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         direct_links: bool = True,
         seed: int = None,
         reg_alpha: float = None,
-        rtol: float = None
+        rtol: float = None,
+        gamma: np.typing.ArrayLike | None = None,
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
@@ -272,7 +299,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
                        direct_links=direct_links,
                        seed=seed,
                        reg_alpha=reg_alpha,
-                       rtol=rtol)
+                       rtol=rtol,
+                       gamma=gamma)
 
     def fit(self, X, y):
         """
@@ -765,6 +793,14 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         When ``rtol=None``, the array API standard default for
         ``pinv`` is used.
 
+    gamma : np.typing.ArrayLike, None, default = None
+        Scaling factor to normalize the output of one layer
+        before inputting to the next layer. None implies no
+        scaling is applied. A single value implies applying
+        the scaling to each layer with the same value. For
+        different gammas per layer, pass an array with the
+        same size as `hidden_layer_sizes`.
+
     Attributes
     ----------
     n_features_in_ : int
@@ -808,6 +844,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float | None = None,
+        gamma: np.typing.ArrayLike | None = None,
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
@@ -815,7 +852,8 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
                        direct_links=direct_links,
                        seed=seed,
                        reg_alpha=reg_alpha,
-                       rtol=rtol)
+                       rtol=rtol,
+                       gamma=gamma)
 
     def fit(self, X, y):
         """
