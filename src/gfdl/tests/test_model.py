@@ -528,7 +528,7 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
     clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
     with pytest.raises(ValueError, match="must be > 0"):
         clf.fit(X, y)
-        
+
 
 @pytest.mark.parametrize("gamma, weight_scheme, expected_acc, expected_roc", [
     (None, "normal", 0.9472222222222222, 0.9889187266963562),
@@ -598,5 +598,4 @@ def test_gamma_scaling_invalid_input_classifier():
                            seed=0,
                            gamma=[-0.8, 100])
     with pytest.raises(ValueError, match="Out of range"):
-        model.fit(X_train_s, y_train)
-
+        model.fit(X_train_s, y_train)        

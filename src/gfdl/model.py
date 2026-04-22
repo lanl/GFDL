@@ -34,7 +34,7 @@ class GFDL(BaseEstimator):
         rtol: float | None = None,
         gamma: np.typing.ArrayLike | None = None,
     ):
-        self.hidden_layer_sizes = hidden_layer_sizes
+        self.hidden_layer_sizes = np.asarray(hidden_layer_sizes)
         self.activation = activation
         self.direct_links = direct_links
         self.seed = seed
@@ -93,11 +93,9 @@ class GFDL(BaseEstimator):
         # Y shape: (n_samples, n_classes-1)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        self.hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
         if self.hidden_layer_sizes.min() < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {self.hidden_layer_sizes}")
-        
         if self.gamma is not None:
             if not np.isscalar(self.gamma):
                 if len(self.gamma) != len(self.hidden_layer_sizes):
