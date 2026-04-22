@@ -518,6 +518,18 @@ def test_rtol_ensemble(reg_alpha, rtol, expected_acc, expected_roc):
     np.testing.assert_allclose(roc_cur, expected_roc, atol=1e-05)
 
 
+@pytest.mark.parametrize("hidden_layer_sizes", [
+    (-1, -1, -1),
+    (0, 1, 1),
+])
+@pytest.mark.parametrize("classifier", [GFDLClassifier, EnsembleGFDLClassifier])
+def test_gh_85_classifiers(hidden_layer_sizes, classifier):
+    X, y = make_classification(random_state=42)
+    clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
+    with pytest.raises(ValueError, match="must be > 0"):
+        clf.fit(X, y)
+        
+
 @pytest.mark.parametrize("gamma, weight_scheme, expected_acc, expected_roc", [
     (None, "normal", 0.9472222222222222, 0.9889187266963562),
     (0.5, "normal", 0.9638888888888889, 0.9936661671672866),
@@ -587,3 +599,4 @@ def test_gamma_scaling_invalid_input_classifier():
                            gamma=[-0.8, 100])
     with pytest.raises(ValueError, match="Out of range"):
         model.fit(X_train_s, y_train)
+

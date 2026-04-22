@@ -47,7 +47,6 @@ class GFDL(BaseEstimator):
         fn = resolve_activation(self.activation)[1]
         self._activation_fn = fn
         self._N = X.shape[1]
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
         self._weight_mode = resolve_weight(self.weight_scheme)
 
         # weights shape: (n_layers,)
@@ -58,17 +57,17 @@ class GFDL(BaseEstimator):
 
         self.W_.append(
             self._weight_mode(
-                self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+                self._N, self.hidden_layer_sizes[0], rng=self.get_generator(self.seed)
                 )
             )
         self.b_.append(
-            self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
+            self._weight_mode(1, self.hidden_layer_sizes[0], rng=rng)
             .reshape(-1)
             )
-        for i, layer in enumerate(hidden_layer_sizes[1:]):
+        for i, layer in enumerate(self.hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(
-                self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,)
+                self._weight_mode(self.hidden_layer_sizes[i], layer, rng=rng,)
                 )
             # (n_hidden,)
             self.b_.append(
@@ -94,7 +93,11 @@ class GFDL(BaseEstimator):
         # Y shape: (n_samples, n_classes-1)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-
+        self.hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+        if self.hidden_layer_sizes.min() < 1:
+            raise ValueError("hidden_layer_sizes must be > 0, "
+                             f"got {self.hidden_layer_sizes}")
+        
         if self.gamma is not None:
             if not np.isscalar(self.gamma):
                 if len(self.gamma) != len(self.hidden_layer_sizes):
@@ -401,10 +404,13 @@ class EnsembleGFDL(BaseEstimator):
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
 
+        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+        if hidden_layer_sizes.min() < 1:
+            raise ValueError("hidden_layer_sizes must be > 0, "
+                             f"got {hidden_layer_sizes}")
         fn = resolve_activation(self.activation)[1]
         self._activation_fn = fn
         self._N = X.shape[1]
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
         self._weight_mode = resolve_weight(self.weight_scheme)
 
         self.W_ = []
