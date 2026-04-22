@@ -191,7 +191,7 @@ def test_partial_fit_regressor(
     # NOTE: for Moore-Penrose, a large singular value
     # cutoff (rtol) is required to achieve reasonable R2 with
     # the Boston Housing dataset
-    (None, -0.7553690096260643),
+    (None, 0.7598842872358528),
 ])
 def test_partial_fit_boston(reg_alpha, expected):
     # real-world data test with multi-layer RVFL
@@ -212,7 +212,8 @@ def test_partial_fit_boston(reg_alpha, expected):
             direct_links=1,
             seed=0,
             reg_alpha=reg_alpha,
-            rtol=1e-3,  # has no effect for `Ridge`
+            rtol=1e-6,  # when rtol is squared (1e-3 -> 1e-6)
+                        # we achieve similar results as full fit
         )
     batch = 100
     for start in range(0, len(X_train_s), batch):
