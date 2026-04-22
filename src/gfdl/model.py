@@ -1,6 +1,7 @@
 """
 Estimators for gradient free deep learning.
 """
+
 import numpy as np
 from scipy.special import logsumexp
 from scipy.stats import mode
@@ -31,7 +32,7 @@ class GFDL(BaseEstimator):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float | None = None,
-        gamma: float | np.typing.ArrayLike | None = None,
+        gamma: np.typing.ArrayLike | None = None,
     ):
         self.hidden_layer_sizes = hidden_layer_sizes
         self.activation = activation
@@ -76,25 +77,13 @@ class GFDL(BaseEstimator):
 
     def _construct_Hs(self, X):
         # hypothesis space shape: (n_layers,)
-        if self.gamma is not None:
-            if np.isscalar(self.gamma):
-                gamma = self.gamma
-            else:
-                gamma = np.asarray(self.gamma)
-                if len(gamma) != len(self.W_):
-                    raise ValueError("Mismatch between number of gamma values passed "
-                    "and the total number of hidden layers. Expect them to be equal.")
-
         Hs = []
         H_prev = X
         for i, (w, b) in enumerate(zip(self.W_, self.b_, strict=True)):
             Z = H_prev @ w.T + b  # (n_samples, n_hidden)
             H_prev = self._activation_fn(Z)
             if self.gamma is not None:
-                if np.isscalar(self.gamma):
-                    H_prev *= 1.0 / (H_prev.shape[1] ** gamma)
-                else:
-                    H_prev *= 1.0 / (H_prev.shape[1] ** self.gamma[i])
+                H_prev *= 1.0 / (H_prev.shape[1] ** self.gamma[i])
 
             Hs.append(H_prev)
         return Hs
@@ -105,6 +94,19 @@ class GFDL(BaseEstimator):
         # Y shape: (n_samples, n_classes-1)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
+
+        if self.gamma is not None:
+            if not np.isscalar(self.gamma):
+                if len(self.gamma) != len(self.hidden_layer_sizes):
+                    raise ValueError("Mismatch between number of gamma values passed "
+                    "and the total number of hidden layers. Expect them to be equal.")
+            else:
+                self.gamma = np.ones(len(self.hidden_layer_sizes)) * self.gamma
+
+            self.gamma = np.asarray(self.gamma, dtype=float)
+            if np.any((self.gamma > 1.0) | (self.gamma < 0.5)):
+                raise ValueError("Out of range gamma. Expected range : "
+                "None or [0.5, 1.0].")
 
         self._init_weights(X)
         self.Hs_ = self._construct_Hs(X)
@@ -234,12 +236,13 @@ class GFDLClassifier(ClassifierMixin, GFDL):
       When ``rtol=None``, the array API standard default for
       ``pinv`` is used.
 
-    gamma : float, np.typing.ArrayLike, None, default = None
+    gamma : np.typing.ArrayLike, None, default = None
         Scaling factor to normalize the output of one layer
         before inputting to the next layer. None implies no
         scaling is applied. A single value implies applying
-        the scaling each layer with the same value. For different
-        gammas per layer, pass an array like type.
+        the scaling to each layer with the same value. For
+        different gammas per layer, pass an array with the
+        same size as `hidden_layer_sizes`.
 
     Attributes
     ----------
@@ -287,7 +290,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float = None,
-        gamma: float | np.typing.ArrayLike | None = None,
+        gamma: np.typing.ArrayLike | None = None,
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
@@ -786,12 +789,13 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         When ``rtol=None``, the array API standard default for
         ``pinv`` is used.
 
-    gamma : float, np.typing.ArrayLike, None, default = None
+    gamma : np.typing.ArrayLike, None, default = None
         Scaling factor to normalize the output of one layer
         before inputting to the next layer. None implies no
         scaling is applied. A single value implies applying
-        the scaling each layer with the same value. For different
-        gammas per layer, pass an array like type.
+        the scaling to each layer with the same value. For
+        different gammas per layer, pass an array with the
+        same size as `hidden_layer_sizes`.
 
     Attributes
     ----------
@@ -836,7 +840,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float | None = None,
-        gamma: float | np.typing.ArrayLike | None = None,
+        gamma: np.typing.ArrayLike | None = None,
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
                        activation=activation,
