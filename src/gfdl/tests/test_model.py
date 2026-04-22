@@ -598,4 +598,4 @@ def test_gamma_scaling_invalid_input_classifier():
                            seed=0,
                            gamma=[-0.8, 100])
     with pytest.raises(ValueError, match="Out of range"):
-        model.fit(X_train_s, y_train)        
+        model.fit(X_train_s, y_train)
