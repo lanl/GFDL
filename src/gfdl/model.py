@@ -195,15 +195,27 @@ class GFDL(BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regression.
 
-        # scipy.linalg.solve(self.A + reg_mat, self.B)
-        # is equivalent to
-        # ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False, solver='cholesky)
-        # ridge.fit(D_all[:current_batch], Y_all[:current_batch])
+        # A = D.T @ D
+        # B = D.T @ y
+        # pinv(D) @ y = pinv(A)@B:
+        # pinv(D) @ y = (D.T @ D)^-1 @ D.T @ y
+
+        # pinv(A) @ B = pinv(D.T @ D) @ D.T @ y
+
+        # pinv(D.T @ D) @ D.T @ y = ((D.T @ D).T @ (D.T @ D))^-1 @ (D.T @ D).T @ D.T @ y
+        # = ((D.T @ D) @ (D.T @ D))^-1 @ (D.T @ D) @ D.T @ y
+        # = (D.T @ D)^-1 @ (D.T @ D)^-1 @ (D.T @ D) @ D.T @ y
+        # = (D.T @ D)^-1 @ D.T @ y
 
         if self.reg_alpha is None:
-            pinv_A = np.linalg.pinv(self.A, rtol=self.rtol)
-            self.coeff_ = pinv_A @ self.B
+            self.coeff_ = np.linalg.pinv(self.A, rtol=self.rtol) @ self.B
         else:
+            # scipy.linalg.solve(self.A + reg_mat, self.B)
+            # is equivalent to
+            # ridge = Ridge(
+            #   alpha=self.reg_alpha, fit_intercept=False, solver='cholesky'
+            #   )
+            # ridge.fit(D_all[:current_batch], Y_all[:current_batch])
             reg_mat = np.eye(self.A.shape[0]) * self.reg_alpha
             self.coeff_ = scipy.linalg.solve(self.A + reg_mat, self.B)
         if self.coeff_.ndim == 2 and self.coeff_.shape[1] == 1:
@@ -435,6 +447,14 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         The design matrix is incrementally updated by persisting the gram matrix
         (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
         the gram and moment contributions of each new batch.
+
+        For batches D1, D2, ..., Dk:
+        [D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)
+        This allows incremental accumulation.
+
+        One difference between full fit and partial fit arises in the direct solve path.
+        Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the condition
+        number is squared. This may require a lower rtol to avoid loss of information.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
@@ -645,15 +665,28 @@ class EnsembleGFDL(BaseEstimator):
             # If reg_alpha is None, use direct solve using
             # MoorePenrose Pseudo-Inverse, otherwise use ridge regression.
 
-            # scipy.linalg.solve(self.A + reg_mat, self.B)
-            # is equivalent to
-            # ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False, solver='cholesky)
-            # ridge.fit(D_all[:current_batch], Y_all[:current_batch])
+            # A = D.T @ D
+            # B = D.T @ y
+            # pinv(D) @ y = pinv(A)@B:
+            # pinv(D) @ y = (D.T @ D)^-1 @ D.T @ y
+
+            # pinv(A) @ B = pinv(D.T @ D) @ D.T @ y
+
+            # pinv(D.T @ D) @ D.T @ y
+            # = ((D.T @ D).T @ (D.T @ D))^-1 @ (D.T @ D).T @ D.T @ y
+            # = ((D.T @ D) @ (D.T @ D))^-1 @ (D.T @ D) @ D.T @ y
+            # = (D.T @ D)^-1 @ (D.T @ D)^-1 @ (D.T @ D) @ D.T @ y
+            # = (D.T @ D)^-1 @ D.T @ y
 
             if self.reg_alpha is None:
-                pinv_A = np.linalg.pinv(self.As[i], rtol=self.rtol)
-                coef_ = pinv_A @ self.Bs[i]
+                coef_ = np.linalg.pinv(self.As[i], rtol=self.rtol) @ self.Bs[i]
             else:
+                # scipy.linalg.solve(self.A + reg_mat, self.B)
+                # is equivalent to
+                # ridge = Ridge(
+                #   alpha=self.reg_alpha, fit_intercept=False, solver='cholesky'
+                #   )
+                # ridge.fit(D_all[:current_batch], Y_all[:current_batch])
                 reg_mat = np.eye(
                     self.As[i].shape[0], dtype=self.As[i].dtype
                     ) * self.reg_alpha
@@ -863,6 +896,14 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         The design matrix is incrementally updated by persisting the gram matrix
         (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
         the gram and moment contributions of each new batch.
+
+        For batches D1, D2, ..., Dk:
+        [D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)
+        This allows incremental accumulation.
+
+        One difference between full fit and partial fit arises in the direct solve path.
+        Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the condition
+        number is squared. This may require a lower rtol to avoid loss of information.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
