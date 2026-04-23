@@ -422,6 +422,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
     def partial_fit(self, X, y, classes=None):
         """
         Build a gradient-free neural network from the batched training set (X, y).
+        .. versionadded:: 0.2.0
 
         Parameters
         ----------
@@ -445,16 +446,21 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         Notes
         -----
         The design matrix is incrementally updated by persisting the gram matrix
-        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
+        (`D.T @ D`) and the moment vector (`D.T @ y`) for each batch, then adding
         the gram and moment contributions of each new batch.
 
-        For batches D1, D2, ..., Dk:
-        [D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)
+        For batches `D1, D2, ..., Dk`:
+        `[D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)`
         This allows incremental accumulation.
+
+        The way we accumulate information across batches prevents us from using
+        `Ridge()`as we do in full fit. In `partial_fit()` we never have access to
+        the full design matrix, we only persist the aggregate quantities
+        `D.T @ D`, `D.T @ y`.
 
         One difference between full fit and partial fit arises in the direct solve path.
         Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the condition
-        number is squared. This may require a lower rtol to avoid loss of information.
+        number is squared. This may require a lower `rtol` to avoid loss of information.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
@@ -871,6 +877,7 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
     def partial_fit(self, X, y, classes=None):
         """
         Train the ensemble of connected RVFL networks on the batched training set.
+        .. versionadded:: 0.2.0
 
         Parameters
         ----------
@@ -894,16 +901,21 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         Notes
         -----
         The design matrix is incrementally updated by persisting the gram matrix
-        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
+        (`D.T @ D`) and the moment vector (`D.T @ y`) for each batch, then adding
         the gram and moment contributions of each new batch.
 
-        For batches D1, D2, ..., Dk:
-        [D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)
+        For batches `D1, D2, ..., Dk`:
+        `[D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)`
         This allows incremental accumulation.
+
+        The way we accumulate information across batches prevents us from using
+        `Ridge()`as we do in full fit. In `partial_fit()` we never have access to
+        the full design matrix, we only persist the aggregate quantities
+        `D.T @ D`, `D.T @ y`.
 
         One difference between full fit and partial fit arises in the direct solve path.
         Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the condition
-        number is squared. This may require a lower rtol to avoid loss of information.
+        number is squared. This may require a lower `rtol` to avoid loss of information.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
