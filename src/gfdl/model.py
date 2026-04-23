@@ -425,6 +425,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
     def partial_fit(self, X, y, classes=None):
         """
         Build a gradient-free neural network from the batched training set (X, y).
+
         .. versionadded:: 0.2.0
 
         Parameters
@@ -883,6 +884,7 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
     def partial_fit(self, X, y, classes=None):
         """
         Train the ensemble of connected RVFL networks on the batched training set.
+
         .. versionadded:: 0.2.0
 
         Parameters
