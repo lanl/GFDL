@@ -465,11 +465,14 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         The way we accumulate information across batches prevents us from using
         `Ridge()`as we do in full fit. In `partial_fit()` we never have access to
         the full design matrix, we only persist the aggregate quantities
-        `D.T @ D`, `D.T @ y`.
+        `D.T @ D`, `D.T @ y`. Instead, for the regularized case, we directly solve
+        the system using `scipy.linalg.solve(A + reg_mat, B)`, which is mathematically
+        equivalent to scikit-learn's `Ridge(solver='cholesky')`.
 
-        One difference between full fit and partial fit arises in the direct solve path.
-        Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the condition
-        number is squared. This may require a lower `rtol` to avoid loss of information.
+        One other difference between full fit and partial fit arises in the direct
+        solve path. Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the
+        condition number is squared. This may require a lower `rtol` to avoid loss of
+        information.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
@@ -927,11 +930,14 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         The way we accumulate information across batches prevents us from using
         `Ridge()`as we do in full fit. In `partial_fit()` we never have access to
         the full design matrix, we only persist the aggregate quantities
-        `D.T @ D`, `D.T @ y`.
+        `D.T @ D`, `D.T @ y`. Instead, for the regularized case, we directly solve
+        the system using `scipy.linalg.solve(A + reg_mat, B)`, which is mathematically
+        equivalent to scikit-learn's `Ridge(solver='cholesky')`.
 
-        One difference between full fit and partial fit arises in the direct solve path.
-        Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the condition
-        number is squared. This may require a lower `rtol` to avoid loss of information.
+        One other difference between full fit and partial fit arises in the direct
+        solve path. Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the
+        condition number is squared. This may require a lower `rtol` to avoid loss of
+        information.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
