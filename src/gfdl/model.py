@@ -111,6 +111,8 @@ class GFDL(BaseEstimator):
         return self
 
     def partial_fit(self, X, y):
+        # D @ beta = y, where D is the design matrix over the full dataset.
+
         # Moore Penrose Pseudoinverse:
         # D+ = (D.T @ D)^-1 @ D.T
         #
@@ -453,8 +455,11 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         (`D.T @ D`) and the moment vector (`D.T @ y`) for each batch, then adding
         the gram and moment contributions of each new batch.
 
-        For batches `D1, D2, ..., Dk`:
+        For batches `D = [D1, D2, ..., Dk].T`:
         `[D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)`
+
+        Similarly for `y = [y1, y2, ..., yk].T`:
+        `[D1; D2; ...; Dk].T @ [y1; y2; ...; yk] = sum_i(Di.T @ yi)`
         This allows incremental accumulation.
 
         The way we accumulate information across batches prevents us from using
@@ -912,8 +917,11 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         (`D.T @ D`) and the moment vector (`D.T @ y`) for each batch, then adding
         the gram and moment contributions of each new batch.
 
-        For batches `D1, D2, ..., Dk`:
+        For batches `D = [D1, D2, ..., Dk].T`:
         `[D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)`
+
+        Similarly for `y = [y1, y2, ..., yk].T`:
+        `[D1; D2; ...; Dk].T @ [y1; y2; ...; yk] = sum_i(Di.T @ yi)`
         This allows incremental accumulation.
 
         The way we accumulate information across batches prevents us from using
