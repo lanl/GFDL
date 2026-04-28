@@ -452,27 +452,27 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         Notes
         -----
         The design matrix is incrementally updated by persisting the gram matrix
-        (`D.T @ D`) and the moment vector (`D.T @ y`) for each batch, then adding
+        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
         the gram and moment contributions of each new batch.
 
-        For batches `D = [D1, D2, ..., Dk].T`:
-        `[D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)`
+        For batches D = [D1, D2, ..., Dk].T::
 
-        Similarly for `y = [y1, y2, ..., yk].T`:
-        `[D1; D2; ...; Dk].T @ [y1; y2; ...; yk] = sum_i(Di.T @ yi)`
+            [D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_k(Dk.T @ Dk)
+            [D1; D2; ...; Dk].T @ [y1; y2; ...; yk] = sum_k(Dk.T @ yk)
+
         This allows incremental accumulation.
 
         The way we accumulate information across batches prevents us from using
-        `Ridge()` as we do in full fit. In `partial_fit()` we never have access to
+        ``Ridge()`` as we do in full fit. In ``partial_fit()`` we never have access to
         the full design matrix, we only persist the aggregate quantities
-        `D.T @ D`, `D.T @ y`. Instead, for the regularized case, we directly solve
-        the system using `scipy.linalg.solve(A + reg_mat, B)`, which is mathematically
-        equivalent to scikit-learn's `Ridge(solver='cholesky')`.
+        ``D.T @ D``, ``D.T @ y``. Instead, for the regularized case, we directly solve
+        the system using ``scipy.linalg.solve(A + reg_mat, B)``, which is mathematically
+        equivalent to scikit-learn's ``Ridge(solver='cholesky')``.
 
         One other difference between full fit and partial fit arises in the direct
-        solve path. Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the
-        condition number is squared. This may require a lower `rtol` to avoid loss of
-        information.
+        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D, the
+        condition number is squared. This may require a lower ``rtol`` to maintain 
+        numerical stability and avoid loss of information.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
@@ -917,27 +917,27 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         Notes
         -----
         The design matrix is incrementally updated by persisting the gram matrix
-        (`D.T @ D`) and the moment vector (`D.T @ y`) for each batch, then adding
+        (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
         the gram and moment contributions of each new batch.
 
-        For batches `D = [D1, D2, ..., Dk].T`:
-        `[D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_i(Di.T @ Di)`
+        For batches D = [D1, D2, ..., Dk].T::
 
-        Similarly for `y = [y1, y2, ..., yk].T`:
-        `[D1; D2; ...; Dk].T @ [y1; y2; ...; yk] = sum_i(Di.T @ yi)`
+            [D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_k(Dk.T @ Dk)
+            [D1; D2; ...; Dk].T @ [y1; y2; ...; yk] = sum_k(Dk.T @ yk)
+
         This allows incremental accumulation.
 
         The way we accumulate information across batches prevents us from using
-        `Ridge()` as we do in full fit. In `partial_fit()` we never have access to
+        ``Ridge()`` as we do in full fit. In ``partial_fit()`` we never have access to
         the full design matrix, we only persist the aggregate quantities
-        `D.T @ D`, `D.T @ y`. Instead, for the regularized case, we directly solve
-        the system using `scipy.linalg.solve(A + reg_mat, B)`, which is mathematically
-        equivalent to scikit-learn's `Ridge(solver='cholesky')`.
+        ``D.T @ D``, ``D.T @ y``. Instead, for the regularized case, we directly solve
+        the system using ``scipy.linalg.solve(A + reg_mat, B)``, which is mathematically
+        equivalent to scikit-learn's ``Ridge(solver='cholesky')``.
 
         One other difference between full fit and partial fit arises in the direct
-        solve path. Because `pinv()` is acting on `D.T@D` as opposed to just `D`, the
-        condition number is squared. This may require a lower `rtol` to avoid loss of
-        information.
+        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D, the
+        condition number is squared. This may require a lower ``rtol`` to maintain 
+        numerical stability and avoid loss of information.
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
@@ -1219,6 +1219,25 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         The design matrix is incrementally updated by persisting the gram matrix
         (D.T @ D) and the moment vector (D.T @ y) for each batch, then adding
         the gram and moment contributions of each new batch.
+
+        For batches D = [D1, D2, ..., Dk].T::
+
+            [D1; D2; ...; Dk].T @ [D1; D2; ...; Dk] = sum_k(Dk.T @ Dk)
+            [D1; D2; ...; Dk].T @ [y1; y2; ...; yk] = sum_k(Dk.T @ yk)
+
+        This allows incremental accumulation.
+
+        The way we accumulate information across batches prevents us from using
+        ``Ridge()`` as we do in full fit. In ``partial_fit()`` we never have access to
+        the full design matrix, we only persist the aggregate quantities
+        ``D.T @ D``, ``D.T @ y``. Instead, for the regularized case, we directly solve
+        the system using ``scipy.linalg.solve(A + reg_mat, B)``, which is mathematically
+        equivalent to scikit-learn's ``Ridge(solver='cholesky')``.
+
+        One other difference between full fit and partial fit arises in the direct
+        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D, the
+        condition number is squared. This may require a lower ``rtol`` to maintain 
+        numerical stability and avoid loss of information.
         """
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
         if Y.ndim == 1:
