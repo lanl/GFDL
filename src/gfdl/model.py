@@ -114,10 +114,10 @@ class GFDL(BaseEstimator):
         # D @ beta = y, where D is the design matrix over the full dataset.
 
         # Moore Penrose Pseudoinverse:
-        # D+ = (D.T @ D)^-1 @ D.T
+        # pinv(D) = (D.T @ D)^-1 @ D.T
         #
         # Least squares solution:
-        # D+ @ y = (D.T @ D)^-1 @ D.T @ y
+        # pinv(D) @ y = (D.T @ D)^-1 @ D.T @ y
         #
         # We're persisting the gram (D.T @ D) and moment (D.T @ y) matrices
         # and updating them by adding the gram and moment matrices of
