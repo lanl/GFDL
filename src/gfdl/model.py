@@ -463,7 +463,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         This allows incremental accumulation.
 
         The way we accumulate information across batches prevents us from using
-        `Ridge()`as we do in full fit. In `partial_fit()` we never have access to
+        `Ridge()` as we do in full fit. In `partial_fit()` we never have access to
         the full design matrix, we only persist the aggregate quantities
         `D.T @ D`, `D.T @ y`. Instead, for the regularized case, we directly solve
         the system using `scipy.linalg.solve(A + reg_mat, B)`, which is mathematically
@@ -928,7 +928,7 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         This allows incremental accumulation.
 
         The way we accumulate information across batches prevents us from using
-        `Ridge()`as we do in full fit. In `partial_fit()` we never have access to
+        `Ridge()` as we do in full fit. In `partial_fit()` we never have access to
         the full design matrix, we only persist the aggregate quantities
         `D.T @ D`, `D.T @ y`. Instead, for the regularized case, we directly solve
         the system using `scipy.linalg.solve(A + reg_mat, B)`, which is mathematically
