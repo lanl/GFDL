@@ -470,8 +470,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         equivalent to scikit-learn's ``Ridge(solver='cholesky')``.
 
         One other difference between full fit and partial fit arises in the direct
-        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D, the
-        condition number is squared. This may require a lower ``rtol`` to maintain 
+        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D,
+        the condition number is squared. This may require a lower ``rtol`` to maintain
         numerical stability and avoid loss of information.
         """
         # shape: (n_samples, n_features)
@@ -935,8 +935,8 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         equivalent to scikit-learn's ``Ridge(solver='cholesky')``.
 
         One other difference between full fit and partial fit arises in the direct
-        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D, the
-        condition number is squared. This may require a lower ``rtol`` to maintain 
+        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D,
+        the condition number is squared. This may require a lower ``rtol`` to maintain
         numerical stability and avoid loss of information.
         """
         # shape: (n_samples, n_features)
@@ -1235,8 +1235,8 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         equivalent to scikit-learn's ``Ridge(solver='cholesky')``.
 
         One other difference between full fit and partial fit arises in the direct
-        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D, the
-        condition number is squared. This may require a lower ``rtol`` to maintain 
+        solve path. Because ``pinv()`` is acting on ``D.T @ D`` as opposed to just D,
+        the condition number is squared. This may require a lower ``rtol`` to maintain
         numerical stability and avoid loss of information.
         """
         X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
