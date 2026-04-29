@@ -1,3 +1,4 @@
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -8,7 +9,6 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.estimator_checks import parametrize_with_checks
 from ucimlrepo import fetch_ucirepo
-import tracemalloc
 
 from gfdl.activations import ACTIVATIONS
 from gfdl.model import EnsembleGFDLClassifier, GFDLClassifier
