@@ -8,6 +8,7 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.utils.estimator_checks import parametrize_with_checks
 from ucimlrepo import fetch_ucirepo
+import tracemalloc
 
 from gfdl.activations import ACTIVATIONS
 from gfdl.model import EnsembleGFDLClassifier, GFDLClassifier
@@ -589,22 +590,22 @@ def test_partial_fit(
         # NOTE: for Moore-Penrose, a large singular value
         # cutoff (rcond) or alpha regularization is required
         # to achieve reasonable accuracy
-        # Without rtol or reg accuracy ~= 0.7368
+        # Without rtol or reg accuracy ~= 0.7632
         # With reg accuracy ~= 0.9649
         # With rtol accuracy ~= 0.9474
         (GFDLClassifier, 5, None, 0.9649122807017544),
-        (GFDLClassifier, None, None, 0.7368421052631579),
+        (GFDLClassifier, None, None, 0.7631578947368421),
         (GFDLClassifier, None, 1e-3, 0.9473684210526315),
 
         # NOTE: for Moore-Penrose, a large singular value
         # cutoff (rcond) or alpha regularization is required
         # to achieve reasonable accuracy
-        # Without rtol or reg accuracy ~= 0.7368
-        # With reg accuracy ~= 0.9649
-        # With rtol accuracy ~= 0.9474
-        (EnsembleGFDLClassifier, 5, None, 0.9649122807017544),
-        (EnsembleGFDLClassifier, None, None, 0.7368421052631579),
-        (EnsembleGFDLClassifier, None, 1e-3, 0.9473684210526315),
+        # Without rtol or reg accuracy ~= 0.7456
+        # With reg accuracy ~= 0.9737
+        # With rtol accuracy ~= 0.9561
+        (EnsembleGFDLClassifier, 5, None, 0.9736842105263158),
+        (EnsembleGFDLClassifier, None, None, 0.7456140350877193),
+        (EnsembleGFDLClassifier, None, 1e-3, 0.956140350877193),
         # NOTE: this behavior may be exacerbated by using shallower,
         # wider networks
         # With this dataset in particular we're achieving better accuracies
@@ -625,8 +626,8 @@ def test_partial_fit_performance(Classifier, ridge_alpha, rcond, expected):
     classes = np.unique(y)
 
     model = Classifier(
-        hidden_layer_sizes=[1000]
-        * 1,  # partial_fit is slow so smaller network for speed
+        hidden_layer_sizes=[500]
+        * 3,  # partial_fit is slow so smaller network for speed
         activation="tanh",
         weight_scheme="uniform",
         seed=0,
@@ -752,7 +753,7 @@ def test_batch_partition_invariance(Classifier, attr):
     strict=True,
 )
 def test_partial_fit_ill_conditioned(Classifier, attr):
-    # For direct_links=True and certain activations and weight combinations,
+    # For certain activations and weight combinations,
     # the design matrix becomes rank-deficient and the exact
     # solve can diverge from fit()
 
@@ -768,7 +769,6 @@ def test_partial_fit_ill_conditioned(Classifier, attr):
         hidden_layer_sizes=(50, 50),
         activation="softmax",
         weight_scheme="range",
-        direct_links=True,
         seed=0,
         reg_alpha=None,
     )
