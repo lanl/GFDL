@@ -711,7 +711,7 @@ class EnsembleGFDL(BaseEstimator):
                 reg_mat = np.eye(
                     self.As[i].shape[0], dtype=self.As[i].dtype
                     ) * self.reg_alpha
-                coef_ = np.linalg.solve(self.As[i] + reg_mat, self.Bs[i])
+                coef_ = scipy.linalg.solve(self.As[i] + reg_mat, self.Bs[i])
 
             self.coeffs_.append(coef_)
 
@@ -1200,6 +1200,8 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
     def partial_fit(self, X, y):
         """
         Train the gradient-free neural network on the batched training set (X, y).
+
+        .. versionadded:: 0.2.0
 
         Parameters
         ----------
