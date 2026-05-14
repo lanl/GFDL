@@ -2,8 +2,6 @@
 GFDL 0.2.0 Release Notes
 ==========================
 
-.. note:: GFDL 0.2.0 is not released yet!
-
 .. contents::
 
 Gradient free deep learning (GFDL) 0.2.0 is the culmination of 3
@@ -31,6 +29,8 @@ New features
 
 ``gfdl.model`` improvements
 ============================
+- All estimators now support the new ``partial_fit`` method, which may
+  be useful for handling design matrices that do not fit into system memory.
 
 *******************
 Deprecated features
@@ -43,6 +43,8 @@ Backwards incompatible changes
 *************
 Other changes
 *************
+- We now have public user facing html documentation:
+  https://lanl.github.io/GFDL/
 
 
 *******
@@ -50,8 +52,8 @@ Authors
 *******
 * Name (commits)
 * Navamita Ray (60)
-* Tyler Reddy (26)
-* Emma Viani (2)
+* Tyler Reddy (36)
+* Emma Viani (81)
 
     A total of 3 people contributed to this release.
     People with a "+" by their names contributed a patch for the first time.
@@ -69,11 +71,13 @@ Issues closed for 0.2.0
 * `#65 <https://github.com/lanl/GFDL/issues/65>`__: DOC, MAINT: link back to deployed docs from PyPI page
 * `#80 <https://github.com/lanl/GFDL/issues/80>`__: MAINT, CI: pin some dependencies to specific hashes
 * `#85 <https://github.com/lanl/GFDL/issues/85>`__: MAINT: better error messages/design for layer widths <= 0 ?
+* `#96 <https://github.com/lanl/GFDL/issues/96>`__: DOC: method links do not work in the documentation
 
 ************************
 Pull requests for 0.2.0
 ************************
 
+* `#47 <https://github.com/lanl/GFDL/pull/47>`__: ENH: partial fit implementation with tests
 * `#53 <https://github.com/lanl/GFDL/pull/53>`__: CI, DOC: Separate docs build from CI test jobs, deployment
 * `#55 <https://github.com/lanl/GFDL/pull/55>`__: REL: set version to 0.2.0
 * `#58 <https://github.com/lanl/GFDL/pull/58>`__: MAINT: EnsembleGFDL--inherit from base
@@ -92,3 +96,4 @@ Pull requests for 0.2.0
 * `#88 <https://github.com/lanl/GFDL/pull/88>`__: MAINT: actions/checkout hash pins
 * `#89 <https://github.com/lanl/GFDL/pull/89>`__: MAINT, CI: Specify hash for doc related actions.
 * `#95 <https://github.com/lanl/GFDL/pull/95>`__: MAINT: remove spurious comment
+* `#100 <https://github.com/lanl/GFDL/pull/100>`__: DOC: custom template to link methods in documentation
