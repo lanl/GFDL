@@ -7,5 +7,6 @@ This is the list of changes to GFDL between each release.
 .. toctree::
    :maxdepth: 1
 
+   release/0.3.0-notes
    release/0.2.0-notes
    release/0.1.0-notes
