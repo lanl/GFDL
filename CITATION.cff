@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Reddy"
+  given-names: "Tyler"
+- family-names: "Ray"
+  given-names: "Navamita"
+- family-names: "Viani"
+  given-names: "Emma"
+title: "Gradient Free Deep Learning (GFDL) "
+version: 0.2.0
+doi: 10.5281/zenodo.20184813
+date-released: 2026-05-14
+url: "https://github.com/lanl/GFDL"
