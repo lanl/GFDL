@@ -23,7 +23,6 @@ extensions = [
     'numpydoc',
     'sphinx_copybutton',
     'sphinx_design',
-    'matplotlib.sphinxext.plot_directive',
     "sphinx.ext.linkcode",
 ]
 
