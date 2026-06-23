@@ -18,6 +18,7 @@ from sklearn.utils import column_or_1d
 from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import check_classification_targets, unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
+import array_api_compat
 
 from gfdl.activations import resolve_activation
 from gfdl.weights import resolve_weight
@@ -47,9 +48,10 @@ class GFDL(BaseEstimator):
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
         # Y shape: (n_samples, n_classes-1)
+        xp = array_api_compat.array_namespace(X, Y)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+        hidden_layer_sizes = xp.asarray(self.hidden_layer_sizes)
         if hidden_layer_sizes.min() < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {hidden_layer_sizes}")
@@ -95,7 +97,7 @@ class GFDL(BaseEstimator):
         # or (n_samples, sum_hidden)
         if self.direct_links:
             Hs.append(X)
-        D = np.hstack(Hs)
+        D = xp.concat(Hs, axis=1)
 
         # beta shape: (sum_hidden+n_features, n_classes-1)
         # or (sum_hidden, n_classes-1)
@@ -103,7 +105,7 @@ class GFDL(BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.pinv(D, rtol=self.rtol) @ Y
+            self.coeff_ = xp.linalg.pinv(D, rtol=self.rtol) @ Y
         else:
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
             ridge.fit(D, Y)
@@ -410,6 +412,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         object
           Fitted estimator.
         """
+        xp = array_api_compat.array_namespace(X, y)
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
         self.classes_ = unique_labels(Y)
@@ -418,7 +421,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         # (this is necessary for everything beyond binary classification)
         self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
-        Y = self.enc_.fit_transform(Y.reshape(-1, 1))
+        Y = self.enc_.fit_transform(np.from_dlpack(Y).reshape(-1, 1))
+        Y = xp.asarray(Y)
 
         # call base fit method
         super().fit(X, Y)
