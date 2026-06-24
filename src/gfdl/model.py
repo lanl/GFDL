@@ -2,6 +2,7 @@
 Estimators for gradient free deep learning.
 """
 
+import array_api_compat
 import numpy as np
 import scipy
 from scipy.special import logsumexp
@@ -18,7 +19,6 @@ from sklearn.utils import column_or_1d
 from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import check_classification_targets, unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
-import array_api_compat
 
 from gfdl.activations import resolve_activation
 from gfdl.weights import resolve_weight
@@ -89,6 +89,8 @@ class GFDL(BaseEstimator):
         Hs = []
         H_prev = X
         for w, b in zip(self.W_, self.b_, strict=False):
+            w = xp.asarray(w, device=H_prev.device)
+            b = xp.asarray(b, device=H_prev.device)
             Z = H_prev @ w.T + b  # (n_samples, n_hidden)
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
@@ -413,6 +415,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
           Fitted estimator.
         """
         xp = array_api_compat.array_namespace(X, y)
+        y_device = y.device
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
         self.classes_ = unique_labels(Y)
@@ -421,8 +424,9 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         # (this is necessary for everything beyond binary classification)
         self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
-        Y = self.enc_.fit_transform(np.from_dlpack(Y).reshape(-1, 1))
-        Y = xp.asarray(Y)
+        Y = self.enc_.fit_transform(np.from_dlpack(xp.asarray(Y,
+                                    device="cpu")).reshape(-1, 1))
+        Y = xp.asarray(Y, device=y_device)
 
         # call base fit method
         super().fit(X, Y)
