@@ -2,6 +2,7 @@
 Estimators for gradient free deep learning.
 """
 
+import array_api_compat
 import numpy as np
 import scipy
 from scipy.special import logsumexp
@@ -47,9 +48,10 @@ class GFDL(BaseEstimator):
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
         # Y shape: (n_samples, n_classes-1)
+        xp = array_api_compat.array_namespace(X, Y)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+        hidden_layer_sizes = xp.asarray(self.hidden_layer_sizes)
         if hidden_layer_sizes.min() < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {hidden_layer_sizes}")
@@ -87,6 +89,8 @@ class GFDL(BaseEstimator):
         Hs = []
         H_prev = X
         for w, b in zip(self.W_, self.b_, strict=False):
+            w = xp.asarray(w, device=H_prev.device)
+            b = xp.asarray(b, device=H_prev.device)
             Z = H_prev @ w.T + b  # (n_samples, n_hidden)
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
@@ -95,7 +99,7 @@ class GFDL(BaseEstimator):
         # or (n_samples, sum_hidden)
         if self.direct_links:
             Hs.append(X)
-        D = np.hstack(Hs)
+        D = xp.concat(Hs, axis=1)
 
         # beta shape: (sum_hidden+n_features, n_classes-1)
         # or (sum_hidden, n_classes-1)
@@ -103,7 +107,7 @@ class GFDL(BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.pinv(D, rtol=self.rtol) @ Y
+            self.coeff_ = xp.linalg.pinv(D, rtol=self.rtol) @ Y
         else:
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
             ridge.fit(D, Y)
@@ -410,6 +414,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         object
           Fitted estimator.
         """
+        xp = array_api_compat.array_namespace(X, y)
+        y_device = y.device
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
         self.classes_ = unique_labels(Y)
@@ -418,7 +424,9 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         # (this is necessary for everything beyond binary classification)
         self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         # shape: (n_samples, n_classes-1)
-        Y = self.enc_.fit_transform(Y.reshape(-1, 1))
+        Y = self.enc_.fit_transform(np.from_dlpack(xp.asarray(Y,
+                                    device="cpu")).reshape(-1, 1))
+        Y = xp.asarray(Y, device=y_device)
 
         # call base fit method
         super().fit(X, Y)
