@@ -241,3 +241,19 @@ def test_gh_85_regressor(hidden_layer_sizes):
     model = GFDLRegressor(hidden_layer_sizes=hidden_layer_sizes, seed=0)
     with pytest.raises(ValueError, match="must be > 0"):
         model.fit(X, y)
+
+
+def test_preserve_class_inputs():
+    # see: gh-111
+    model = GFDLRegressor(seed=0)
+    actual = model.get_params()
+    expected = {"activation": "identity",
+                "direct_links": True,
+                "hidden_layer_sizes": (100,),
+                "reg_alpha": None,
+                "rtol": None,
+                "seed": 0,
+                "weight_scheme": "uniform"}
+    for k, v in actual.items():
+        assert v == expected[k]
+        assert isinstance(v, type(expected[k]))
