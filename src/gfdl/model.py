@@ -213,7 +213,8 @@ class GFDL(BaseEstimator):
         # = (D.T @ D)^-1 @ D.T @ y
 
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.pinv(self.A, rtol=self.rtol) @ self.B
+            self.coeff_ = np.linalg.pinv(self.A, rtol=self.rtol,
+                                         hermitian=True) @ self.B
         else:
             # scipy.linalg.solve(self.A + reg_mat, self.B)
             # is equivalent to
@@ -700,7 +701,8 @@ class EnsembleGFDL(BaseEstimator):
             # = (D.T @ D)^-1 @ D.T @ y
 
             if self.reg_alpha is None:
-                coef_ = np.linalg.pinv(self.As[i], rtol=self.rtol) @ self.Bs[i]
+                coef_ = np.linalg.pinv(self.As[i], rtol=self.rtol,
+                                       hermitian=True) @ self.Bs[i]
             else:
                 # scipy.linalg.solve(self.A + reg_mat, self.B)
                 # is equivalent to
