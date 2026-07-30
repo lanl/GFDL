@@ -440,6 +440,27 @@ def test_sklearn_api_conformance(estimator, check):
     check(estimator)
 
 
+@pytest.mark.parametrize("estimator", [
+    GFDLClassifier, EnsembleGFDLClassifier
+])
+def test_preserve_class_inputs(estimator):
+    # see: gh-111
+    clf = estimator(seed=0)
+    actual = clf.get_params()
+    expected = {"activation": "identity",
+                "hidden_layer_sizes": (100,),
+                "reg_alpha": None,
+                "rtol": None,
+                "seed": 0,
+                "voting": "soft",
+                "weight_scheme": "uniform",
+                "direct_links": True}
+    for k, v in actual.items():
+        if k in expected:
+            assert v == expected[k]
+            assert isinstance(v, type(expected[k]))
+
+
 @pytest.mark.parametrize("reg_alpha, rtol, expected_acc, expected_roc", [
     (0.1, 1e-15, 0.9083333333333333, 0.9893414717354735),
     (None, 1e-15, 0.2222222222222222, 0.5518850599798965),
