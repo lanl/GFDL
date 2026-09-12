@@ -1,5 +1,11 @@
+import os
+
+import array_api_compat
 import numpy as np
 import pytest
+import torch
+from numpy.testing import assert_allclose
+from sklearn import config_context
 from sklearn.base import clone
 from sklearn.datasets import fetch_openml, make_regression
 from sklearn.metrics import r2_score
@@ -257,3 +263,96 @@ def test_preserve_class_inputs():
     for k, v in actual.items():
         assert v == expected[k]
         assert isinstance(v, type(expected[k]))
+
+
+@pytest.mark.parametrize(
+    "estimator, reg_alpha, n_features",
+    [
+        (GFDLRegressor, 1e-1, 40),
+        (GFDLRegressor, 1e-1, 400),
+        (GFDLRegressor, 2, 40),
+        (GFDLRegressor, 2, 400),
+        (GFDLRegressor, None, 40),
+        (GFDLRegressor, None, 400),
+    ]
+)
+def test_torch_cpu_matches_numpy(estimator,
+                                 reg_alpha,
+                                 n_features,
+                                 ):
+    # numpy and torch accuracies should be close up to atol
+    os.environ["SCIPY_ARRAY_API"] = "1"
+    report = r2_score
+    rng = np.random.default_rng(seed=42)
+    acc_np_s = []
+    acc_torch_s = []
+    for _ in range(10):
+        random_state = rng.integers(low=0, high=100, size=1)[0]
+        X_np, y_np = make_regression(
+            n_samples=10_000,
+            n_features=n_features,
+            n_informative=int(n_features / 10),
+            n_targets=1,
+            random_state=random_state,
+        )
+        X_torch = torch.asarray(X_np, device="cpu",)
+        y_torch = torch.asarray(y_np, device="cpu",)
+        with config_context(array_api_dispatch=True):
+            model = estimator(reg_alpha=reg_alpha)
+            model.fit(X_np, y_np)
+            y_pred = model.predict(X_torch)
+            acc_torch = report(
+                y_torch,
+                y_pred,
+            )
+            acc_torch_s.append(acc_torch)
+        # test against numpy which is current usage
+        with config_context(array_api_dispatch=True):
+            model = estimator(reg_alpha=reg_alpha)
+            model.fit(X_np, y_np)
+            y_pred = model.predict(X_np)
+            acc_np = report(
+                y_np,
+                y_pred,
+            )
+            acc_np_s.append(acc_np)
+        assert_allclose(acc_torch_s, acc_np_s, atol=1e-3)
+
+
+@pytest.mark.parametrize(
+    "estimator, namespace, device, X_dtype, y_dtype",
+    [
+        (GFDLRegressor, np, "cpu", np.float64, np.float64),
+        (GFDLRegressor, torch, "cpu", torch.float64, torch.float64),
+    ]
+)
+def test_predict_same_namespace(estimator,
+                                namespace,
+                                device,
+                                X_dtype,
+                                y_dtype,
+                                ):
+    # ValueError thrown .predict has
+    # different namespace from X and y
+    os.environ["SCIPY_ARRAY_API"] = "1"
+
+    X, y = make_regression(
+        n_samples=1_000,
+        n_features=10,
+        n_informative=4,
+        n_targets=1,
+        random_state=42,
+    )
+    X = namespace.asarray(X, dtype=X_dtype, device=device)
+    y = namespace.asarray(y, dtype=y_dtype, device=device)
+    xp = array_api_compat.get_namespace(X, y)
+    with config_context(array_api_dispatch=True):
+        model = estimator()
+        model.fit(X, y)
+        y_pred = model.predict(X)
+
+    xp_y_pred = array_api_compat.get_namespace(y_pred)
+    if xp_y_pred != xp:
+        raise ValueError(
+            ".predict output and X, y are not in the same namespace"
+        )
