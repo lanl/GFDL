@@ -436,6 +436,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
+        Y = _to_numpy_cpu_y(Y)
         self.classes_ = unique_labels(Y)
 
         # onehot y
@@ -1330,3 +1331,26 @@ def _ensure_float_X(xp, X):
         kwargs["device"] = device
 
     return xp.asarray(X, **kwargs)
+
+
+def _to_numpy_cpu_y(y):
+    """Convert label array y to a 1D NumPy array on CPU."""
+    # if y is None:
+    #     raise ValueError("y cannot be None for a supervised estimator.")
+
+    # PyTorch: handles CPU and CUDA tensors.
+    if hasattr(y, "detach") and hasattr(y, "cpu") and hasattr(y, "numpy"):
+        y = y.detach().cpu().numpy()
+
+    # CuPy: GPU -> CPU NumPy.
+    elif hasattr(y, "get"):
+        y = y.get()
+
+    # Generic fallback: NumPy, JAX CPU/device arrays, pandas, lists, etc.
+    else:
+        y = np.asarray(y)
+
+    # Normalize shape for sklearn classifier utilities.
+    y = column_or_1d(y, warn=True)
+
+    return y
