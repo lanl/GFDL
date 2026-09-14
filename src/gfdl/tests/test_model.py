@@ -1,6 +1,10 @@
+import os
+
 import numpy as np
 import pytest
+import torch
 from numpy.testing import assert_allclose
+from sklearn import config_context
 from sklearn.base import clone
 from sklearn.datasets import load_breast_cancer, load_digits, make_classification
 from sklearn.metrics import accuracy_score, roc_auc_score
@@ -822,3 +826,71 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
     clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
     with pytest.raises(ValueError, match="must be > 0"):
         clf.fit(X, y)
+
+
+@pytest.mark.parametrize(
+    "reg_alpha, n_features, hidden_layer_sizes, n_classes",
+    [
+        (1e-1, 40, (100,), 2),
+        (1e-1, 400, (100,), 2),
+        (2, 40, (100,), 2),
+        (2, 400, (100,), 2),
+        (None, 40, (100,), 2),
+        (None, 400, (100,), 2),
+        (1e-1, 40, (100, 100,), 3),
+        (1e-1, 400, (100, 100,), 3),
+        (2, 40, (100, 100,), 3),
+        (2, 400, (100, 100,), 3),
+        (None, 40, (100, 100,), 3),
+        (None, 400, (100, 100,), 3),
+    ]
+)
+def test_torch_matches_numpy(reg_alpha,
+                             n_features,
+                             hidden_layer_sizes,
+                             n_classes,
+                             ):
+    """NumPy and Torch predictions should be close up to atol"""
+    os.environ["SCIPY_ARRAY_API"] = "1"
+    estimator = GFDLClassifier
+    report = accuracy_score
+    rng = np.random.default_rng(seed=42)
+    acc_np_s = []
+    acc_torch_s = []
+    for _ in range(10):
+        random_state = rng.integers(low=0, high=100, size=1)[0]
+        X_np, y_np = make_classification(
+            n_samples=10_000,
+            n_features=n_features,
+            n_informative=int(n_features / 10),
+            n_classes=n_classes,
+            random_state=random_state,
+        )
+        X_torch = torch.asarray(X_np, device="cpu",)
+        y_torch = torch.asarray(y_np, device="cpu",)
+        with config_context(array_api_dispatch=True):
+            model = estimator(reg_alpha=reg_alpha,
+                              hidden_layer_sizes=hidden_layer_sizes,
+                              seed=random_state,
+                              )
+            model.fit(X_np, y_np)
+            y_pred = model.predict(X_torch)
+            acc_torch = report(
+                y_torch,
+                y_pred,
+            )
+            acc_torch_s.append(acc_torch)
+        # test against numpy which is current usage
+        with config_context(array_api_dispatch=True):
+            model = estimator(reg_alpha=reg_alpha,
+                              hidden_layer_sizes=hidden_layer_sizes,
+                              seed=random_state,
+                              )
+            model.fit(X_np, y_np)
+            y_pred = model.predict(X_np)
+            acc_np = report(
+                y_np,
+                y_pred,
+            )
+            acc_np_s.append(acc_np)
+        assert_allclose(acc_torch_s, acc_np_s, atol=1e-3)
