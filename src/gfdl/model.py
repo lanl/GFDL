@@ -2,6 +2,7 @@
 Estimators for gradient free deep learning.
 """
 
+import array_api_compat
 import numpy as np
 import scipy
 from scipy.special import logsumexp
@@ -44,12 +45,16 @@ class GFDL(BaseEstimator):
         self.rtol = rtol
 
     def fit(self, X, Y):
+        xp = array_api_compat.get_namespace(X)
+        X = _ensure_float_X(xp, X)
+        Y = _check_and_convert_array(X, Y)
+
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
         # Y shape: (n_samples, n_classes-1)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+        hidden_layer_sizes = xp.asarray(self.hidden_layer_sizes)
         if hidden_layer_sizes.min() < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {hidden_layer_sizes}")
@@ -65,22 +70,34 @@ class GFDL(BaseEstimator):
         rng = self.get_generator(self.seed)
 
         self.W_.append(
+            _check_and_convert_array(
+            X,
             self._weight_mode(
                 self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
-                )
+                ),
+            )
             )
         self.b_.append(
+            _check_and_convert_array(
+            X,
             self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-            .reshape(-1)
+            .reshape(-1),
+            )
             )
         for i, layer in enumerate(hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(
-                self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,)
+                _check_and_convert_array(
+                X,
+                self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,),
+                )
                 )
             # (n_hidden,)
             self.b_.append(
-                self._weight_mode(1, layer, rng=rng,).reshape(-1)
+                _check_and_convert_array(
+                X,
+                self._weight_mode(1, layer, rng=rng,).reshape(-1),
+                )
                 )
 
         # hypothesis space shape: (n_layers,)
@@ -95,7 +112,7 @@ class GFDL(BaseEstimator):
         # or (n_samples, sum_hidden)
         if self.direct_links:
             Hs.append(X)
-        D = np.hstack(Hs)
+        D = xp.concat(Hs, axis=1)
 
         # beta shape: (sum_hidden+n_features, n_classes-1)
         # or (sum_hidden, n_classes-1)
@@ -103,7 +120,7 @@ class GFDL(BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.pinv(D, rtol=self.rtol) @ Y
+            self.coeff_ = xp.linalg.pinv(D, rtol=self.rtol) @ Y
         else:
             ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
             ridge.fit(D, Y)
@@ -229,17 +246,24 @@ class GFDL(BaseEstimator):
 
     def predict(self, X):
         check_is_fitted(self)
+        xp = array_api_compat.get_namespace(X)
+
         Hs = []
         H_prev = X
         for W, b in zip(self.W_, self.b_, strict=False):
+            W = _check_and_convert_array(X, W)
+            b = _check_and_convert_array(X, b)
             Z = H_prev @ W.T + b  # (n, m)
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
 
         if self.direct_links:
             Hs.append(X)
-        D = np.hstack(Hs)
-        out = D @ self.coeff_
+        D = xp.concat(Hs, axis=1)
+        out = D @ _check_and_convert_array(
+            X,
+            self.coeff_
+        )
 
         return out
 
@@ -412,6 +436,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         """
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
+        Y = _to_numpy_cpu_y(Y)
         self.classes_ = unique_labels(Y)
 
         # onehot y
@@ -1266,3 +1291,66 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         return super().predict(X)
+
+
+def _check_and_convert_array(X1, X2):
+    """Convert second array to namespace, device, dtype of first if not already"""
+    xp = array_api_compat.get_namespace(X1)
+    kwargs = {}
+
+    if hasattr(X1, "dtype") and getattr(X2, "dtype", None) != X1.dtype:
+        kwargs["dtype"] = X1.dtype
+
+    x1_device = getattr(X1, "device", None)
+    x2_device = getattr(X2, "device", None)
+
+    if x1_device is not None and x1_device != x2_device:
+        kwargs["device"] = x1_device
+
+    if kwargs:
+        return xp.asarray(X2, **kwargs)
+
+    return X2
+
+
+def _ensure_float_X(xp, X):
+    """Make design matrix floating point numbers"""
+    if xp.isdtype(X.dtype, "real floating"):
+        return X
+
+    device = getattr(X, "device", None)
+    device_str = str(device).lower()
+
+    if "cuda" in device_str or "gpu" in device_str or "tpu" in device_str:
+        dtype = xp.float32
+    else:
+        dtype = xp.float64
+
+    kwargs = {"dtype": dtype}
+    if device is not None:
+        kwargs["device"] = device
+
+    return xp.asarray(X, **kwargs)
+
+
+def _to_numpy_cpu_y(y):
+    """Convert label array y to a 1D NumPy array on CPU."""
+    # if y is None:
+    #     raise ValueError("y cannot be None for a supervised estimator.")
+
+    # PyTorch: handles CPU and CUDA tensors.
+    if hasattr(y, "detach") and hasattr(y, "cpu") and hasattr(y, "numpy"):
+        y = y.detach().cpu().numpy()
+
+    # CuPy: GPU -> CPU NumPy.
+    elif hasattr(y, "get"):
+        y = y.get()
+
+    # Generic fallback: NumPy, JAX CPU/device arrays, pandas, lists, etc.
+    else:
+        y = np.asarray(y)
+
+    # Normalize shape for sklearn classifier utilities.
+    y = column_or_1d(y, warn=True)
+
+    return y
