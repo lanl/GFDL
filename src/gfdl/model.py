@@ -34,6 +34,9 @@ class GFDL(BaseEstimator):
         seed: int = None,
         reg_alpha: float = None,
         rtol: float | None = None,
+        p_scaling: bool = False,
+        activation_scale: float = None,
+        direct_links_scale: float = None
     ):
         self.hidden_layer_sizes = hidden_layer_sizes
         self.activation = activation
@@ -42,6 +45,9 @@ class GFDL(BaseEstimator):
         self.weight_scheme = weight_scheme
         self.reg_alpha = reg_alpha
         self.rtol = rtol
+        self.p_scaling = p_scaling
+        self.activation_scale = activation_scale
+        self.direct_links_scale = direct_links_scale
 
     def fit(self, X, Y):
         # Assumption : X, Y have been pre-processed.
@@ -53,6 +59,26 @@ class GFDL(BaseEstimator):
         if hidden_layer_sizes.min() < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {hidden_layer_sizes}")
+        if hidden_layer_sizes.size > 1 and self.p_scaling:
+            raise NotImplementedError("p-scaling is only implemented "
+                                      "for models with 1 hidden layer")
+        if self.activation_scale is not None and self.activation_scale < 0.0:
+            raise ValueError("Negative scaling parameters. "
+                             "All scaling parameters must be positive.")
+        if self.direct_links_scale is not None and self.direct_links_scale < 0.0:
+            raise ValueError("Negative scaling parameters. "
+                             "All scaling parameters must be positive.")
+        # According to Scikit-learn API, define self.activation_scale_ and
+        # self.direct_links_scale_
+        if self.activation_scale is None:
+            self.activation_scale_ = 1.0
+        else:
+            self.activation_scale_ = self.activation_scale
+        if self.direct_links_scale is None:
+            self.direct_links_scale_ = 1.0
+        else:
+            self.direct_links_scale_ = self.direct_links_scale
+
         fn = resolve_activation(self.activation)[1]
         self._activation_fn = fn
         self._N = X.shape[1]
@@ -86,15 +112,20 @@ class GFDL(BaseEstimator):
         # hypothesis space shape: (n_layers,)
         Hs = []
         H_prev = X
+        # If self.pscaling, then the below loop should run at most once.
         for w, b in zip(self.W_, self.b_, strict=False):
             Z = H_prev @ w.T + b  # (n_samples, n_hidden)
-            H_prev = self._activation_fn(Z)
+            if self.p_scaling:
+                H_prev = np.sqrt(self.activation_scale_) * self._activation_fn(Z)
+                H_prev = H_prev / np.sqrt(hidden_layer_sizes[0])
+            else:
+                H_prev = np.sqrt(self.activation_scale_) * self._activation_fn(Z)
             Hs.append(H_prev)
 
         # design matrix shape: (n_samples, sum_hidden+n_features)
         # or (n_samples, sum_hidden)
         if self.direct_links:
-            Hs.append(X)
+            Hs.append(X * np.sqrt(self.direct_links_scale_))
         D = np.hstack(Hs)
 
         # beta shape: (sum_hidden+n_features, n_classes-1)
@@ -138,6 +169,19 @@ class GFDL(BaseEstimator):
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
         # Y shape: (n_samples, n_classes-1)
+
+        # scaling not implemented.
+        if (self.p_scaling
+            or (self.activation_scale is not None)
+            or (self.direct_links_scale is not None)
+        ):
+            raise NotImplementedError("Scaling has not been "
+                                      "implemented for partial fit.")
+        # Prediction methods use self.activation_scale_ and self.direct_links_scale_
+        # These would have been defined here if scaling were implemented.
+        # Setting both equal to 1.0 does not change any results compared to not scaling.
+        self.activation_scale_ = 1.0
+        self.direct_links_scale_ = 1.0
 
         if not hasattr(self, "W_"):
             # initialize params only on first call
@@ -229,15 +273,24 @@ class GFDL(BaseEstimator):
 
     def predict(self, X):
         check_is_fitted(self)
+        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
         Hs = []
         H_prev = X
+
         for W, b in zip(self.W_, self.b_, strict=False):
             Z = H_prev @ W.T + b  # (n, m)
-            H_prev = self._activation_fn(Z)
+            # (implementation) if p_scaling,
+            # then the network has only one hidden layer, so the loop runs only once.
+            if self.p_scaling:
+                H_prev = self._activation_fn(Z) * np.sqrt(self.activation_scale_)
+                H_prev = H_prev / np.sqrt(hidden_layer_sizes[0])
+            else:
+                H_prev = self._activation_fn(Z) * np.sqrt(self.activation_scale_)
             Hs.append(H_prev)
 
         if self.direct_links:
-            Hs.append(X)
+            Hs.append(X * np.sqrt(self.direct_links_scale_))
+
         D = np.hstack(Hs)
         out = D @ self.coeff_
 
@@ -281,6 +334,10 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         - 'log_sigmoid': :func:`log_sigmoid <gfdl.activations.log_sigmoid>`.
 
         - 'log_softmax': :func:`log_softmax <gfdl.activations.log_softmax>`.
+
+        - 'sign': :func:`sign <gfdl.activations.sign>`.
+
+        - 'cbrt': :func:`cbrt <gfdl.activations.cbrt>`.
 
     weight_scheme : str, default='uniform'
         Distribution used to initialize the random hidden-layer weights.
@@ -338,6 +395,19 @@ class GFDLClassifier(ClassifierMixin, GFDL):
       When ``rtol=None``, the array API standard default for
       ``pinv`` is used.
 
+    p_scaling : bool, default=False
+        If true, the activation function is divided by a factor of
+        the square root of the size of the hidden-layers. Only implemented
+        for single-layer RVFLs or ELMs.
+
+    activation_scale : float, default=1.0
+        The activation function is multiplied by the square root of activation_scaling.
+
+    direct_links_scale : float, default=1.0
+        The direct links terms of the design matrix are multiplied by a factor of
+        the square root of direct_links_scaling. Does nothing if direct_links is
+        set to False.
+
     Attributes
     ----------
     n_features_in_ : int
@@ -383,15 +453,21 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         direct_links: bool = True,
         seed: int = None,
         reg_alpha: float = None,
-        rtol: float = None
+        rtol: float = None,
+        p_scaling: bool = False,
+        activation_scale: float = None,
+        direct_links_scale: float = None
     ):
         super().__init__(hidden_layer_sizes=hidden_layer_sizes,
-                       activation=activation,
-                       weight_scheme=weight_scheme,
-                       direct_links=direct_links,
-                       seed=seed,
-                       reg_alpha=reg_alpha,
-                       rtol=rtol)
+                         activation=activation,
+                         weight_scheme=weight_scheme,
+                         direct_links=direct_links,
+                         seed=seed,
+                         reg_alpha=reg_alpha,
+                         rtol=rtol,
+                         p_scaling=p_scaling,
+                         activation_scale=activation_scale,
+                         direct_links_scale=direct_links_scale)
 
     def fit(self, X, y):
         """
@@ -764,6 +840,10 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         - 'log_sigmoid': :func:`log_sigmoid <gfdl.activations.log_sigmoid>`.
 
         - 'log_softmax': :func:`log_softmax <gfdl.activations.log_softmax>`.
+
+        - 'sign': :func:`sign <gfdl.activations.sign>`.
+
+        - 'cbrt': :func:`cbrt <gfdl.activations.cbrt>`.
 
     weight_scheme : str, default='uniform'
         Distribution used to initialize the random hidden-layer weights.

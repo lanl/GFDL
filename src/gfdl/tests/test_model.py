@@ -822,3 +822,130 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
     clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
     with pytest.raises(ValueError, match="must be > 0"):
         clf.fit(X, y)
+
+
+@pytest.mark.parametrize("p_scaling, activation_scale, direct_links_scale", [
+    (True, None, None),
+    (False, 1.0, None),
+    (False, None, 1.0)
+])
+def test_improper_non_Classifier_scaling(p_scaling,
+                                         activation_scale,
+                                         direct_links_scale,
+                                         classifier=EnsembleGFDLClassifier,
+                                         hidden_layer_sizes=(10,)):
+    if p_scaling:
+        Errstr1 = "unexpected keyword argument 'p_scaling'"
+        with pytest.raises(TypeError, match=Errstr1):
+            classifier(hidden_layer_sizes=hidden_layer_sizes,
+                       p_scaling=p_scaling)
+    if activation_scale is not None:
+        Errstr2 = "unexpected keyword argument 'activation_scale'"
+        with pytest.raises(TypeError, match=Errstr2):
+            classifier(hidden_layer_sizes=hidden_layer_sizes,
+                       activation_scale=activation_scale)
+    if direct_links_scale is not None:
+        Errstr3 = "unexpected keyword argument 'direct_links_scale'"
+        with pytest.raises(TypeError, match=Errstr3):
+            classifier(hidden_layer_sizes=hidden_layer_sizes,
+                       direct_links_scale=direct_links_scale)
+
+
+@pytest.mark.parametrize("p_scaling", [True, False])
+@pytest.mark.parametrize("activation_scale", [-1.0, 1.0, 2.0, None])
+@pytest.mark.parametrize("direct_links_scale", [-1.0, 1.0, 2.0, None])
+@pytest.mark.parametrize("fit_first", [True, False])
+def test_improper_Classifier_scaling(p_scaling,
+                                     activation_scale,
+                                     direct_links_scale,
+                                     fit_first,
+                                     classifier=GFDLClassifier,
+                                     hidden_layer_sizes=(10,),
+                                     random_state=42):
+    # Makes sure partial_fit is never called when there is scaling.
+    # Also checks that activation_scale and direct_links_scale are non-negative
+
+    # NOTE:: if activation_scale or direct_links_scale is set to None,
+    # then classifier is implemented as if activation_scale or direct_links_scale
+    # was omitted.
+    model = classifier(hidden_layer_sizes=hidden_layer_sizes,
+                       activation_scale=activation_scale,
+                       direct_links_scale=direct_links_scale,
+                       p_scaling=p_scaling)
+    X, y = make_classification(random_state=random_state)
+
+    # for convenience, define effective scales
+    eff_activation_scale = 1.0 if activation_scale is None else activation_scale
+    eff_direct_links_scale = 1.0 if direct_links_scale is None else direct_links_scale
+
+    if eff_activation_scale < 0.0 or eff_direct_links_scale < 0.0:
+        with pytest.raises(ValueError, match="Negative scaling parameters."):
+            model.fit(X, y)
+
+    # To check that error handling for partial_fit works whether or not
+    # fit is called before partial_fit. Also make sure fit passes without
+    # error.
+    # Of course, we also have to check that the scales are non-negative
+    if fit_first and eff_activation_scale >= 0.0 and eff_direct_links_scale >= 0.0:
+        model.fit(X, y)
+
+    # If not p_scaling and both activation_scale and direct_links_scale are None,
+    # and if not fit_first, then the test passes for free. Not sure of the best
+    # way to handle that case.
+    if p_scaling or (activation_scale is not None) or (direct_links_scale is not None):
+        classes = np.unique(y)
+        with pytest.raises(NotImplementedError,
+                           match="Scaling has not been "
+                                 "implemented for partial fit."):
+            model.partial_fit(X, y, classes=classes)
+
+
+@pytest.mark.parametrize("""p_scaling,
+                            activation_scale,
+                            direct_links_scale,
+                            expected_acc,
+                            expected_roc,
+                            random_state""", [
+    (True, 2.0, 0.5, 0.975, 0.998168356, 42),
+    (True, 0.5, 2.0, 0.975, 0.998122724, 42),
+    (False, 1.0, 5.0, 0.975, 0.998166560, 42),
+    (False, 10.0, 1.0, 0.975, 0.998166560, 42),
+    (False, 1.0, 1.0, 0.975, 0.998166560, 42),
+    (True, 1.0, 1.0, 0.975, 0.998172636, 42)
+])
+def test_scaling_classifier(p_scaling,
+                            activation_scale,
+                            direct_links_scale,
+                            expected_acc,
+                            expected_roc,
+                            random_state):
+    # Establishes baseline acc/roc values for scaled GFDLs
+
+    # Use the digits data set
+    data = load_digits()
+    X, y = data.data, data.target
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        random_state=random_state)
+
+    scaler = StandardScaler()
+    X_train_s = scaler.fit_transform(X_train)
+    X_test_s = scaler.transform(X_test)
+
+    model = GFDLClassifier(hidden_layer_sizes=[100],
+                           activation="relu",
+                           weight_scheme="normal",
+                           seed=random_state,
+                           reg_alpha=1.0,
+                           p_scaling=p_scaling,
+                           activation_scale=activation_scale,
+                           direct_links_scale=direct_links_scale)
+    model.fit(X_train_s, y_train)
+
+    y_hat_cur = model.predict(X_test_s)
+    y_hat_cur_proba = model.predict_proba(X_test_s)
+
+    acc_cur = accuracy_score(y_test, y_hat_cur)
+    roc_cur = roc_auc_score(y_test, y_hat_cur_proba, multi_class="ovo")
+
+    np.testing.assert_allclose(acc_cur, expected_acc)
+    np.testing.assert_allclose(roc_cur, expected_roc)
