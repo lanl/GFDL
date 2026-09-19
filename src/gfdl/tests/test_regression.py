@@ -1,5 +1,11 @@
+import os
+
+import array_api_compat
 import numpy as np
 import pytest
+import torch
+from numpy.testing import assert_allclose
+from sklearn import config_context
 from sklearn.base import clone
 from sklearn.datasets import fetch_openml, make_regression
 from sklearn.metrics import r2_score
@@ -257,3 +263,202 @@ def test_preserve_class_inputs():
     for k, v in actual.items():
         assert v == expected[k]
         assert isinstance(v, type(expected[k]))
+
+
+@pytest.mark.parametrize(
+    "reg_alpha, n_features, hidden_layer_sizes",
+    [
+        (1e-1, 40, (100,)),
+        (1e-1, 400, (100,)),
+        (2, 40, (100,)),
+        (2, 400, (100,)),
+        (None, 40, (100,)),
+        (None, 400, (100,)),
+        (1e-1, 40, (100, 100,)),
+        (1e-1, 400, (100, 100,)),
+        (2, 40, (100, 100,)),
+        (2, 400, (100, 100,)),
+        (None, 40, (100, 100,)),
+        (None, 400, (100, 100,)),
+    ]
+)
+def test_torch_matches_numpy(reg_alpha,
+                             n_features,
+                             hidden_layer_sizes,
+                             ):
+    """NumPy and Torch predictions should be close up to atol"""
+    os.environ["SCIPY_ARRAY_API"] = "1"
+    estimator = GFDLRegressor
+    report = r2_score
+    rng = np.random.default_rng(seed=42)
+    acc_np_s = []
+    acc_torch_s = []
+    for _ in range(10):
+        random_state = rng.integers(low=0, high=100, size=1)[0]
+        X_np, y_np = make_regression(
+            n_samples=10_000,
+            n_features=n_features,
+            n_informative=int(n_features / 10),
+            n_targets=1,
+            random_state=random_state,
+        )
+        X_torch = torch.asarray(X_np, device="cpu",)
+        y_torch = torch.asarray(y_np, device="cpu",)
+        with config_context(array_api_dispatch=True):
+            model = estimator(reg_alpha=reg_alpha,
+                              hidden_layer_sizes=hidden_layer_sizes,
+                              seed=random_state,
+                              )
+            model.fit(X_np, y_np)
+            y_pred = model.predict(X_torch)
+            acc_torch = report(
+                y_torch,
+                y_pred,
+            )
+            acc_torch_s.append(acc_torch)
+        # test against numpy which is current usage
+        with config_context(array_api_dispatch=True):
+            model = estimator(reg_alpha=reg_alpha,
+                              hidden_layer_sizes=hidden_layer_sizes,
+                              seed=random_state,
+                              )
+            model.fit(X_np, y_np)
+            y_pred = model.predict(X_np)
+            acc_np = report(
+                y_np,
+                y_pred,
+            )
+            acc_np_s.append(acc_np)
+        assert_allclose(acc_torch_s, acc_np_s, atol=1e-3)
+
+
+@pytest.mark.parametrize(
+    "namespace, fit_dtype, predict_dtype",
+    [
+        (np, np.float64, np.float32),
+        (torch, torch.float64, torch.float32),
+        (np, np.float32, np.float64),
+        (torch, torch.float32, torch.float64),
+    ]
+)
+def test_predictor_context(namespace,
+                            fit_dtype,
+                            predict_dtype,
+                            ):
+    # ValueError thrown .predict has
+    # different namespace, dtype
+    # from its arguments
+    os.environ["SCIPY_ARRAY_API"] = "1"
+    estimator = GFDLRegressor
+    device = "cpu"
+
+    X, y = make_regression(
+        n_samples=1_000,
+        n_features=10,
+        n_informative=4,
+        n_targets=1,
+        random_state=42,
+    )
+    X1 = namespace.asarray(X, dtype=fit_dtype, device=device)
+    X2 = namespace.asarray(X, dtype=predict_dtype, device=device)
+    y = namespace.asarray(y, dtype=fit_dtype, device=device)
+    with config_context(array_api_dispatch=True):
+        y_pred = estimator().fit(X1, y).predict(X2)
+
+    xp_ypred = array_api_compat.get_namespace(y_pred)
+    xp_X2 = array_api_compat.get_namespace(X2)
+    if xp_ypred != xp_X2:
+        raise ValueError(
+            ".predict output and input are not in the same namespace"
+        )
+    if predict_dtype != y_pred.dtype:
+        raise ValueError(
+            ".predict output and input are not the same dtype"
+        )
+
+
+@pytest.mark.parametrize(
+    "namespace, X_dtype, y_dtype",
+    [
+        (np, np.float64, np.int64),
+        (np, np.int64, np.float64),
+        (torch, torch.float64, torch.int64),
+    ]
+)
+def test_int_array_api(namespace,
+                       X_dtype,
+                       y_dtype,
+                       ):
+    """Integer arrays shall be handled gracefully"""
+    os.environ["SCIPY_ARRAY_API"] = "1"
+    estimator = GFDLRegressor
+
+    X, y = make_regression(
+        n_samples=1_000,
+        n_features=10,
+        n_informative=4,
+        n_targets=1,
+        random_state=42,
+    )
+    X = namespace.asarray(X, dtype=X_dtype, device="cpu")
+    y = namespace.asarray(y, dtype=y_dtype, device="cpu")
+    with config_context(array_api_dispatch=True):
+        estimator().fit(X, y)
+
+
+@pytest.mark.parametrize(
+    "namespace, X_dtype, y_dtype",
+    [
+        (np, np.float64, np.float64),
+        (np, np.float32, np.float32),
+        (torch, torch.float64, torch.float64),
+        (torch, torch.float32, torch.float32),
+        (torch, torch.float64, torch.float32),
+    ]
+)
+def test_fit_attr_context(namespace,
+                          X_dtype,
+                          y_dtype,
+                          ):
+    """Fitted attributes shall be same as design matrix"""
+    os.environ["SCIPY_ARRAY_API"] = "1"
+    estimator = GFDLRegressor
+    device = "cpu"
+
+    X, y = make_regression(
+        n_samples=1_000,
+        n_features=10,
+        n_informative=4,
+        n_targets=1,
+        random_state=42,
+    )
+    X = namespace.asarray(X, dtype=X_dtype, device=device)
+    y = namespace.asarray(y, dtype=y_dtype, device=device)
+    with config_context(array_api_dispatch=True):
+        model = estimator().fit(X, y)
+
+    dtypes = []
+    devices = []
+    spaces = []
+    W_ = model.W_
+    b_ = model.b_
+    for w, b in zip(W_, b_, strict=False):
+        dtypes.extend((b.dtype, w.dtype))
+        devices.extend((b.device, w.device))
+        spaces.extend(
+            (array_api_compat.get_namespace(w),
+            array_api_compat.get_namespace(b),)
+        )
+
+    coeff_ = model.coeff_
+    dtypes.append(coeff_.dtype)
+    devices.append(coeff_.device)
+    spaces.append(
+        array_api_compat.get_namespace(coeff_)
+    )
+
+    assert all(dtype == X.dtype for dtype in dtypes)
+    assert all(device == X.device for device in devices)
+
+    X_space = array_api_compat.get_namespace(X)
+    assert all(space == X_space for space in spaces)
