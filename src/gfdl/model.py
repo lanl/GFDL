@@ -2,7 +2,6 @@
 Estimators for gradient free deep learning.
 """
 
-import array_api_compat
 import numpy as np
 import scipy
 from scipy.special import logsumexp
@@ -16,6 +15,10 @@ from sklearn.base import (
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import column_or_1d
+from sklearn.utils._array_api import (
+    get_namespace_and_device,
+    move_to,
+)
 from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import check_classification_targets, unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
@@ -45,9 +48,8 @@ class GFDL(BaseEstimator):
         self.rtol = rtol
 
     def fit(self, X, Y):
-        xp = array_api_compat.get_namespace(X)
-        X = _ensure_float_X(xp, X)
-        Y = _check_and_convert_array(X, Y)
+        xp, _, device = get_namespace_and_device(X)
+        Y = move_to(Y, xp=xp, device=device)
 
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
@@ -70,33 +72,37 @@ class GFDL(BaseEstimator):
         rng = self.get_generator(self.seed)
 
         self.W_.append(
-            _check_and_convert_array(
-            X,
+            move_to(
             self._weight_mode(
                 self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
                 ),
+            xp=xp,
+            device=device,
             )
             )
         self.b_.append(
-            _check_and_convert_array(
-            X,
+            move_to(
             self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
             .reshape(-1),
+            xp=xp,
+            device=device,
             )
             )
         for i, layer in enumerate(hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(
-                _check_and_convert_array(
-                X,
+                move_to(
                 self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,),
+                xp=xp,
+                device=device,
                 )
                 )
             # (n_hidden,)
             self.b_.append(
-                _check_and_convert_array(
-                X,
+                move_to(
                 self._weight_mode(1, layer, rng=rng,).reshape(-1),
+                xp=xp,
+                device=device,
                 )
                 )
 
@@ -246,13 +252,13 @@ class GFDL(BaseEstimator):
 
     def predict(self, X):
         check_is_fitted(self)
-        xp = array_api_compat.get_namespace(X)
+        xp, _, device = get_namespace_and_device(X)
 
         Hs = []
         H_prev = X
         for W, b in zip(self.W_, self.b_, strict=False):
-            W = _check_and_convert_array(X, W)
-            b = _check_and_convert_array(X, b)
+            W = move_to(W, xp=xp, device=device)
+            b = move_to(b, xp=xp, device=device)
             Z = H_prev @ W.T + b  # (n, m)
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
@@ -260,9 +266,10 @@ class GFDL(BaseEstimator):
         if self.direct_links:
             Hs.append(X)
         D = xp.concat(Hs, axis=1)
-        out = D @ _check_and_convert_array(
-            X,
-            self.coeff_
+        out = D @ move_to(
+            self.coeff_,
+            xp=xp,
+            device=device,
         )
 
         return out
@@ -1290,43 +1297,3 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         return super().predict(X)
-
-
-def _check_and_convert_array(X1, X2):
-    """Convert second array to namespace, device, dtype of first if not already"""
-    xp = array_api_compat.get_namespace(X1)
-    kwargs = {}
-
-    if hasattr(X1, "dtype") and getattr(X2, "dtype", None) != X1.dtype:
-        kwargs["dtype"] = X1.dtype
-
-    x1_device = getattr(X1, "device", None)
-    x2_device = getattr(X2, "device", None)
-
-    if x1_device is not None and x1_device != x2_device:
-        kwargs["device"] = x1_device
-
-    if kwargs:
-        return xp.asarray(X2, **kwargs)
-
-    return X2
-
-
-def _ensure_float_X(xp, X):
-    """Make design matrix floating point numbers"""
-    if xp.isdtype(X.dtype, "real floating"):
-        return X
-
-    device = getattr(X, "device", None)
-    device_str = str(device).lower()
-
-    if "cuda" in device_str or "gpu" in device_str or "tpu" in device_str:
-        dtype = xp.float32
-    else:
-        dtype = xp.float64
-
-    kwargs = {"dtype": dtype}
-    if device is not None:
-        kwargs["device"] = device
-
-    return xp.asarray(X, **kwargs)
