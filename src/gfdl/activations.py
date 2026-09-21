@@ -2,9 +2,8 @@
 Activation functions for Gradient Free Deep Learning estimators.
 """
 
-import numpy as np
 import scipy
-import array_api_compat
+from sklearn.utils._array_api import get_namespace_and_device
 
 
 def relu(z):
@@ -21,8 +20,9 @@ def relu(z):
     array
         The output array with only positive values.
     """
-    xp = array_api_compat.array_namespace(z)
-    return xp.maximum(0, z)
+    xp, _, device = get_namespace_and_device(z)
+    zero = xp.asarray(0, dtype=z.dtype, device=device)
+    return xp.maximum(zero, z)
 
 
 def tanh(z):
@@ -43,7 +43,7 @@ def tanh(z):
     --------
     numpy.tanh : The hyperbolic tangent function.
     """
-    xp = array_api_compat.array_namespace(z)
+    xp, _, device = get_namespace_and_device(z)
     return xp.tanh(z)
 
 
