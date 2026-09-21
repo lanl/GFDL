@@ -4,6 +4,7 @@ Activation functions for Gradient Free Deep Learning estimators.
 
 import numpy as np
 import scipy
+import array_api_compat
 
 
 def relu(z):
@@ -17,10 +18,11 @@ def relu(z):
 
     Returns
     -------
-    numpy.ndarray
+    array
         The output array with only positive values.
     """
-    return np.maximum(0, z)
+    xp = array_api_compat.array_namespace(z)
+    return xp.maximum(0, z)
 
 
 def tanh(z):
@@ -34,14 +36,15 @@ def tanh(z):
 
     Returns
     -------
-    numpy.ndarray
+    array
         The output array with hyperbolic tangent values.
 
     See Also
     --------
     numpy.tanh : The hyperbolic tangent function.
     """
-    return np.tanh(z)
+    xp = array_api_compat.array_namespace(z)
+    return xp.tanh(z)
 
 
 def sigmoid(z):
@@ -55,7 +58,7 @@ def sigmoid(z):
 
     Returns
     -------
-    numpy.ndarray
+    array
         The output array with the function values.
 
     See Also
@@ -76,7 +79,7 @@ def identity(z):
 
     Returns
     -------
-    numpy.ndarray
+    array
         The input array is returned unchanged.
     """
     return z
@@ -93,7 +96,7 @@ def softmax(z):
 
     Returns
     -------
-    numpy.ndarray
+    array
         The output array with the function values.
 
     See Also
@@ -116,7 +119,7 @@ def softmin(z):
 
     Returns
     -------
-    numpy.ndarray
+    array
         The output array with the function values.
 
     See Also
@@ -137,7 +140,7 @@ def log_sigmoid(z):
 
     Returns
     -------
-    numpy.ndarray
+    array
         The output array with the function values.
 
     See Also
@@ -158,7 +161,7 @@ def log_softmax(z):
 
     Returns
     -------
-    numpy.ndarray
+    array
         The output array with the function values.
 
     See Also
