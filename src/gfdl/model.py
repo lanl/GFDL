@@ -213,7 +213,9 @@ class GFDL(BaseEstimator):
         # = (D.T @ D)^-1 @ D.T @ y
 
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.pinv(self.A, rtol=self.rtol) @ self.B
+            # NOTE: the equivalent NumPy operation on Hermitian matrices
+            # is currently unstable because of OpenBLAS per gh-117
+            self.coeff_ = scipy.linalg.pinvh(self.A, rtol=self.rtol) @ self.B
         else:
             # scipy.linalg.solve(self.A + reg_mat, self.B)
             # is equivalent to
@@ -700,7 +702,9 @@ class EnsembleGFDL(BaseEstimator):
             # = (D.T @ D)^-1 @ D.T @ y
 
             if self.reg_alpha is None:
-                coef_ = np.linalg.pinv(self.As[i], rtol=self.rtol) @ self.Bs[i]
+                # NOTE: the equivalent NumPy operation on Hermitian matrices
+                # is currently unstable because of OpenBLAS per gh-117
+                coef_ = scipy.linalg.pinvh(self.As[i], rtol=self.rtol) @ self.Bs[i]
             else:
                 # scipy.linalg.solve(self.A + reg_mat, self.B)
                 # is equivalent to

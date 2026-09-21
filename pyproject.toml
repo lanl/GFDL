@@ -40,7 +40,7 @@ documentation = "https://lanl.github.io/GFDL/"
 where = ["src"]
 
 [tool.setuptools.package-data]
-gfdl = ["testdata/**/*"]
+gfdl = ["tests/data/*.npy"]
 
 [dependency-groups]
 test = [

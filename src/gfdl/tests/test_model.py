@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -602,6 +604,28 @@ def test_partial_fit(
     assert_allclose(
         getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=1e-3
         )
+
+
+def test_gh_117():
+    X = np.load(Path(__file__).parent / "data/X_Hermitian_gh_117.npy")
+    y = np.load(Path(__file__).parent / "data/y_Hermitian_gh_117.npy")
+    ff_model = GFDLClassifier(hidden_layer_sizes=(5, 5),
+                              activation="identity",
+                              weight_scheme="zeros",
+                              seed=0)
+    pf_model = clone(ff_model)
+    ff_model.fit(X, y)
+    classes = np.unique(y)
+    batch = 25
+    for start in range(0, len(X), batch):
+        end = min(start + batch, len(X))
+        Xb = X[start:end]
+        yb = y[start:end]
+        if start == 0:
+            pf_model.partial_fit(Xb, yb, classes=classes)
+        else:
+            pf_model.partial_fit(Xb, yb)
+    assert_allclose(pf_model.coeff_, ff_model.coeff_, rtol=1e-5, atol=1e-3)
 
 
 @pytest.mark.parametrize(
