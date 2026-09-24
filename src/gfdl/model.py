@@ -18,6 +18,7 @@ from sklearn.utils import column_or_1d
 from sklearn.utils._array_api import (
     get_namespace_and_device,
     move_to,
+    _max_precision_float_dtype,
 )
 from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import check_classification_targets, unique_labels
@@ -47,9 +48,22 @@ class GFDL(BaseEstimator):
         self.reg_alpha = reg_alpha
         self.rtol = rtol
 
+    def __sklearn_tags__(self):
+        # Fetch default tags or construct them
+        tags = super().__sklearn_tags__()
+        tags.array_api_support = True
+        return tags
+
     def fit(self, X, Y):
         xp, _, device = get_namespace_and_device(X)
-        Y = move_to(Y, xp=xp, device=device)
+        default_float_dtype = _max_precision_float_dtype(xp, device)
+        if xp.isdtype(X.dtype, "integral"):
+            X = xp.astype(X, default_float_dtype)
+        Y = xp.astype(
+            move_to(Y, xp=xp, device=device),
+            X.dtype,
+            copy=False,
+        )
 
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
@@ -72,37 +86,53 @@ class GFDL(BaseEstimator):
         rng = self.get_generator(self.seed)
 
         self.W_.append(
+            xp.astype(
             move_to(
             self._weight_mode(
                 self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
                 ),
             xp=xp,
             device=device,
+            ),
+            X.dtype,
+            copy=False,
             )
             )
         self.b_.append(
+            xp.astype(
             move_to(
             self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
             .reshape(-1),
             xp=xp,
             device=device,
+            ),
+            X.dtype,
+            copy=False,
             )
             )
         for i, layer in enumerate(hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(
+                xp.astype(
                 move_to(
                 self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,),
                 xp=xp,
                 device=device,
+                ),
+                X.dtype,
+                copy=False,
                 )
                 )
             # (n_hidden,)
             self.b_.append(
+                xp.astype(
                 move_to(
                 self._weight_mode(1, layer, rng=rng,).reshape(-1),
                 xp=xp,
                 device=device,
+                ),
+                X.dtype,
+                copy=False,
                 )
                 )
 
@@ -253,12 +283,23 @@ class GFDL(BaseEstimator):
     def predict(self, X):
         check_is_fitted(self)
         xp, _, device = get_namespace_and_device(X)
+        default_float_dtype = _max_precision_float_dtype(xp, device)
+        if xp.isdtype(X.dtype, "integral"):
+            X = xp.astype(X, default_float_dtype)
 
         Hs = []
         H_prev = X
         for W, b in zip(self.W_, self.b_, strict=False):
-            W = move_to(W, xp=xp, device=device)
-            b = move_to(b, xp=xp, device=device)
+            W = xp.astype(
+                move_to(W, xp=xp, device=device),
+                X.dtype,
+                copy=False,
+            )
+            b = xp.astype(
+                move_to(b, xp=xp, device=device),
+                X.dtype,
+                copy=False,
+            )
             Z = H_prev @ W.T + b  # (n, m)
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
@@ -266,10 +307,14 @@ class GFDL(BaseEstimator):
         if self.direct_links:
             Hs.append(X)
         D = xp.concat(Hs, axis=1)
-        out = D @ move_to(
+        out = D @ xp.astype(
+            move_to(
             self.coeff_,
             xp=xp,
             device=device,
+            ),
+            X.dtype,
+            copy=False,
         )
 
         return out

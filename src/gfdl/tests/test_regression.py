@@ -111,7 +111,8 @@ def test_regression_against_grafo(n_samples, n_targets, hidden_layer_sizes,
 
 @parametrize_with_checks([GFDLRegressor()])
 def test_sklearn_api_conformance(estimator, check):
-    check(estimator)
+    with config_context(array_api_dispatch=False):
+        check(estimator)
 
 
 @pytest.mark.parametrize("reg_alpha, expected", [
@@ -287,7 +288,6 @@ def test_torch_matches_numpy(reg_alpha,
                              hidden_layer_sizes,
                              ):
     """NumPy and Torch predictions should be close up to atol"""
-    os.environ["SCIPY_ARRAY_API"] = "1"
     estimator = GFDLRegressor
     report = r2_score
     rng = np.random.default_rng(seed=42)
@@ -304,31 +304,29 @@ def test_torch_matches_numpy(reg_alpha,
         )
         X_torch = torch.asarray(X_np, device="cpu",)
         y_torch = torch.asarray(y_np, device="cpu",)
-        with config_context(array_api_dispatch=True):
-            model = estimator(reg_alpha=reg_alpha,
-                              hidden_layer_sizes=hidden_layer_sizes,
-                              seed=random_state,
-                              )
-            model.fit(X_np, y_np)
-            y_pred = model.predict(X_torch)
-            acc_torch = report(
-                y_torch,
-                y_pred,
-            )
-            acc_torch_s.append(acc_torch)
+        model = estimator(reg_alpha=reg_alpha,
+                            hidden_layer_sizes=hidden_layer_sizes,
+                            seed=random_state,
+                            )
+        model.fit(X_np, y_np)
+        y_pred = model.predict(X_torch)
+        acc_torch = report(
+            y_torch,
+            y_pred,
+        )
+        acc_torch_s.append(acc_torch)
         # test against numpy which is current usage
-        with config_context(array_api_dispatch=True):
-            model = estimator(reg_alpha=reg_alpha,
-                              hidden_layer_sizes=hidden_layer_sizes,
-                              seed=random_state,
-                              )
-            model.fit(X_np, y_np)
-            y_pred = model.predict(X_np)
-            acc_np = report(
-                y_np,
-                y_pred,
-            )
-            acc_np_s.append(acc_np)
+        model = estimator(reg_alpha=reg_alpha,
+                            hidden_layer_sizes=hidden_layer_sizes,
+                            seed=random_state,
+                            )
+        model.fit(X_np, y_np)
+        y_pred = model.predict(X_np)
+        acc_np = report(
+            y_np,
+            y_pred,
+        )
+        acc_np_s.append(acc_np)
         assert_allclose(acc_torch_s, acc_np_s, atol=1e-3)
 
 
@@ -348,7 +346,6 @@ def test_predictor_context(namespace,
     # ValueError thrown .predict has
     # different namespace, dtype
     # from its arguments
-    os.environ["SCIPY_ARRAY_API"] = "1"
     estimator = GFDLRegressor
     device = "cpu"
 
@@ -362,8 +359,7 @@ def test_predictor_context(namespace,
     X1 = namespace.asarray(X, dtype=fit_dtype, device=device)
     X2 = namespace.asarray(X, dtype=predict_dtype, device=device)
     y = namespace.asarray(y, dtype=fit_dtype, device=device)
-    with config_context(array_api_dispatch=True):
-        y_pred = estimator().fit(X1, y).predict(X2)
+    y_pred = estimator().fit(X1, y).predict(X2)
 
     xp_ypred = array_api_compat.get_namespace(y_pred)
     xp_X2 = array_api_compat.get_namespace(X2)
@@ -390,7 +386,6 @@ def test_int_array_api(namespace,
                        y_dtype,
                        ):
     """Integer arrays shall be handled gracefully"""
-    os.environ["SCIPY_ARRAY_API"] = "1"
     estimator = GFDLRegressor
 
     X, y = make_regression(
@@ -402,8 +397,7 @@ def test_int_array_api(namespace,
     )
     X = namespace.asarray(X, dtype=X_dtype, device="cpu")
     y = namespace.asarray(y, dtype=y_dtype, device="cpu")
-    with config_context(array_api_dispatch=True):
-        estimator().fit(X, y)
+    estimator().fit(X, y)
 
 
 @pytest.mark.parametrize(
@@ -421,7 +415,6 @@ def test_fit_attr_context(namespace,
                           y_dtype,
                           ):
     """Fitted attributes shall be same as design matrix"""
-    os.environ["SCIPY_ARRAY_API"] = "1"
     estimator = GFDLRegressor
     device = "cpu"
 
@@ -434,8 +427,7 @@ def test_fit_attr_context(namespace,
     )
     X = namespace.asarray(X, dtype=X_dtype, device=device)
     y = namespace.asarray(y, dtype=y_dtype, device=device)
-    with config_context(array_api_dispatch=True):
-        model = estimator().fit(X, y)
+    model = estimator().fit(X, y)
 
     dtypes = []
     devices = []
