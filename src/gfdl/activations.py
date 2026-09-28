@@ -43,7 +43,7 @@ def tanh(z):
     --------
     numpy.tanh : The hyperbolic tangent function.
     """
-    xp, _, device = get_namespace_and_device(z)
+    xp, _, _device = get_namespace_and_device(z)
     return xp.tanh(z)
 
 

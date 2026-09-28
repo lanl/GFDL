@@ -1,9 +1,12 @@
 import os
+
 import pytest
 from sklearn import set_config
 
+
 def pytest_configure(config):
     os.environ["SCIPY_ARRAY_API"] = "1"
+
 
 @pytest.fixture(autouse=True)
 def enable_array_api():
