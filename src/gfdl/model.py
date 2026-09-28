@@ -16,9 +16,10 @@ from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import column_or_1d
 from sklearn.utils._array_api import (
+    _max_precision_float_dtype,
+    check_same_namespace,
     get_namespace_and_device,
     move_to,
-    _max_precision_float_dtype,
 )
 from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import check_classification_targets, unique_labels
@@ -158,7 +159,10 @@ class GFDL(BaseEstimator):
         if self.reg_alpha is None:
             self.coeff_ = xp.linalg.pinv(D, rtol=self.rtol) @ Y
         else:
-            ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
+            ridge = Ridge(alpha=self.reg_alpha,
+                          fit_intercept=False,
+                          solver="svd",
+                          )
             ridge.fit(D, Y)
             self.coeff_ = ridge.coef_.T
         return self
@@ -283,6 +287,7 @@ class GFDL(BaseEstimator):
     def predict(self, X):
         check_is_fitted(self)
         xp, _, device = get_namespace_and_device(X)
+        check_same_namespace(X, self, attribute="coeff_", method="predict")
         default_float_dtype = _max_precision_float_dtype(xp, device)
         if xp.isdtype(X.dtype, "integral"):
             X = xp.astype(X, default_float_dtype)
@@ -290,16 +295,6 @@ class GFDL(BaseEstimator):
         Hs = []
         H_prev = X
         for W, b in zip(self.W_, self.b_, strict=False):
-            W = xp.astype(
-                move_to(W, xp=xp, device=device),
-                X.dtype,
-                copy=False,
-            )
-            b = xp.astype(
-                move_to(b, xp=xp, device=device),
-                X.dtype,
-                copy=False,
-            )
             Z = H_prev @ W.T + b  # (n, m)
             H_prev = self._activation_fn(Z)
             Hs.append(H_prev)
@@ -307,15 +302,7 @@ class GFDL(BaseEstimator):
         if self.direct_links:
             Hs.append(X)
         D = xp.concat(Hs, axis=1)
-        out = D @ xp.astype(
-            move_to(
-            self.coeff_,
-            xp=xp,
-            device=device,
-            ),
-            X.dtype,
-            copy=False,
-        )
+        out = D @ self.coeff_
 
         return out
 
