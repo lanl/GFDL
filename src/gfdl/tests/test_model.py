@@ -1,7 +1,6 @@
 
 import numpy as np
 import pytest
-import torch
 from numpy.testing import assert_allclose
 from sklearn import config_context
 from sklearn.base import clone
