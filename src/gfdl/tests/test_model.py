@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pytest
-import torch
 from numpy.testing import assert_allclose
 from sklearn import config_context
 from sklearn.base import clone
@@ -10,7 +9,13 @@ from sklearn.datasets import load_breast_cancer, load_digits, make_classificatio
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.utils.estimator_checks import parametrize_with_checks
+from sklearn.utils._testing import (
+    skip_if_array_api_compat_not_configured,
+)
+from sklearn.utils.estimator_checks import (
+    check_array_api_input_and_values,
+    parametrize_with_checks,
+)
 from ucimlrepo import fetch_ucirepo
 
 from gfdl.activations import ACTIVATIONS
@@ -334,10 +339,10 @@ def test_soft_and_hard_can_differ(alpha):
 def test_invalid_activation_weight(Classifier):
     X = np.zeros((30, 4))
     y = np.zeros((30,))
-    invalid_act = Classifier(hidden_layer_sizes=100,
+    invalid_act = Classifier(hidden_layer_sizes=(100,),
                              activation="bogus_activation",
                              weight_scheme="uniform")
-    invalid_weight = Classifier(hidden_layer_sizes=100,
+    invalid_weight = Classifier(hidden_layer_sizes=(100,),
                                 activation="identity",
                                 weight_scheme="bogus_weight")
     # the sklearn estimator API bans input validation in __init__,
@@ -828,69 +833,131 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
         clf.fit(X, y)
 
 
-@pytest.mark.parametrize(
-    "reg_alpha, n_features, hidden_layer_sizes, n_classes",
-    [
-        (1e-1, 40, (100,), 2),
-        (1e-1, 400, (100,), 2),
-        (2, 40, (100,), 2),
-        (2, 400, (100,), 2),
-        (None, 40, (100,), 2),
-        (None, 400, (100,), 2),
-        (1e-1, 40, (100, 100,), 3),
-        (1e-1, 400, (100, 100,), 3),
-        (2, 40, (100, 100,), 3),
-        (2, 400, (100, 100,), 3),
-        (None, 40, (100, 100,), 3),
-        (None, 400, (100, 100,), 3),
-    ]
+@skip_if_array_api_compat_not_configured
+@pytest.mark.skipif(
+    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
 )
-def test_torch_matches_numpy(reg_alpha,
-                             n_features,
-                             hidden_layer_sizes,
-                             n_classes,
-                             ):
-    """NumPy and Torch predictions should be close up to atol"""
-    os.environ["SCIPY_ARRAY_API"] = "1"
+@parametrize_with_checks([GFDLClassifier()])
+def test_sklearn_array_api_conformance(estimator, check,):
+    with config_context(array_api_dispatch=True):
+        try:
+            check(estimator)
+        except Exception as exc:
+            if "NotAnArray" in repr(exc):
+                pytest.xfail(
+                    "Full check_estimator under array_api_dispatch=True is expected "
+                    "to fail on sklearn's NotAnArray sentinel."
+                )
+            raise
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.skipif(
+    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
+)
+@pytest.mark.parametrize("hidden_layer_sizes", [(100,), (100, 100)])
+@pytest.mark.parametrize("direct_links", [True, False])
+@pytest.mark.parametrize("activation", ["identity",
+                                        "relu",
+                                        "tanh",
+                                        ])
+@pytest.mark.parametrize("weight_scheme", ["normal",
+                                           "zeros",
+                                           ])
+@pytest.mark.parametrize("reg_alpha", [None, 0.1, 0.5, 1])
+def test_torch_array_api(hidden_layer_sizes,
+                         direct_links,
+                         activation,
+                         weight_scheme,
+                         reg_alpha,
+                         ):
+    """NumPy and Array API public attributes and predictions should be close"""
+
+    pytest.importorskip("torch")
+
+    estimator = GFDLClassifier(
+        reg_alpha=reg_alpha,
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=direct_links,
+        seed=42,
+    )
+    with config_context(array_api_dispatch=True):
+        # Simulates from X, y = make_classification(n_samples=30, n_features=10)
+        # Unstable across backends for some weight schemes
+        check_array_api_input_and_values(
+            estimator.__class__.__name__,
+            estimator,
+            array_namespace="torch",
+            device_name="cpu",
+            dtype_name="float64",
+        )
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.skipif(
+    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
+)
+@pytest.mark.parametrize("hidden_layer_sizes", [(100,), (100, 100)])
+@pytest.mark.parametrize("direct_links", [True, False])
+@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
+@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
+@pytest.mark.parametrize("reg_alpha", [None, 0.1, 0.5, 1])
+@pytest.mark.parametrize("n_classes", [2, 3])
+def test_torch_make_classificatino(hidden_layer_sizes,
+                                    direct_links,
+                                    activation,
+                                    weight_scheme,
+                                    reg_alpha,
+                                    n_classes,
+                                    ):
+    """Custom make_classification()-based NumPy and PyTorch matching"""
+    pytest.importorskip("torch")
+    import torch
     estimator = GFDLClassifier
-    report = accuracy_score
     rng = np.random.default_rng(seed=42)
-    acc_np_s = []
-    acc_torch_s = []
-    for _ in range(10):
+
+    pred_torch = []
+    pred_numpy = []
+    coef_torch = []
+    coef_numpy = []
+    for _ in range(3):
         random_state = rng.integers(low=0, high=100, size=1)[0]
         X_np, y_np = make_classification(
-            n_samples=10_000,
-            n_features=n_features,
-            n_informative=int(n_features / 10),
+            n_samples=250,
+            n_features=20,
+            n_informative=5,
             n_classes=n_classes,
             random_state=random_state,
         )
+
+        # NumPy .fit and .predict
+        model = estimator(
+            reg_alpha=reg_alpha,
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation=activation,
+            weight_scheme=weight_scheme,
+            direct_links=direct_links,
+            seed=random_state,)
+        model.fit(X_np, y_np)
+        y_pred_np = model.predict(X_np)
+        pred_numpy.append(y_pred_np)
+        coef_numpy.append(model.coeff_)
+
+        # PyTorch .fit and .predict
         X_torch = torch.asarray(X_np, device="cpu",)
         y_torch = torch.asarray(y_np, device="cpu",)
-        with config_context(array_api_dispatch=True):
-            model = estimator(reg_alpha=reg_alpha,
-                              hidden_layer_sizes=hidden_layer_sizes,
-                              seed=random_state,
-                              )
-            model.fit(X_np, y_np)
-            y_pred = model.predict(X_torch)
-            acc_torch = report(
-                y_torch,
-                y_pred,
-            )
-            acc_torch_s.append(acc_torch)
-        # test against numpy which is current usage
-        with config_context(array_api_dispatch=True):
-            model = estimator(reg_alpha=reg_alpha,
-                              hidden_layer_sizes=hidden_layer_sizes,
-                              seed=random_state,
-                              )
-            model.fit(X_np, y_np)
-            y_pred = model.predict(X_np)
-            acc_np = report(
-                y_np,
-                y_pred,
-            )
-            acc_np_s.append(acc_np)
-        assert_allclose(acc_torch_s, acc_np_s, atol=1e-3)
+        model = estimator(
+            reg_alpha=reg_alpha,
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation=activation,
+            weight_scheme=weight_scheme,
+            direct_links=direct_links,
+            seed=random_state,)
+        model.fit(X_torch, y_torch)
+        y_pred_torch = model.predict(X_torch)
+        pred_torch.append(y_pred_torch)
+        coef_torch.append(model.coeff_)
+
+        assert_allclose(pred_numpy, pred_torch)
+        assert_allclose(coef_numpy, coef_torch)
