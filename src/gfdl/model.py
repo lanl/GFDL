@@ -15,6 +15,12 @@ from sklearn.base import (
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import column_or_1d
+from sklearn.utils._array_api import (
+    _max_precision_float_dtype,
+    check_same_namespace,
+    get_namespace_and_device,
+    move_to,
+)
 from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import check_classification_targets, unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
@@ -43,14 +49,30 @@ class GFDL(BaseEstimator):
         self.reg_alpha = reg_alpha
         self.rtol = rtol
 
+    def __sklearn_tags__(self):
+        # Fetch default tags or construct them
+        tags = super().__sklearn_tags__()
+        tags.array_api_support = True
+        return tags
+
     def fit(self, X, Y):
+        xp, _, device = get_namespace_and_device(X)
+        default_float_dtype = _max_precision_float_dtype(xp, device)
+        if xp.isdtype(X.dtype, "integral"):
+            X = xp.astype(X, default_float_dtype)
+        Y = xp.astype(
+            move_to(Y, xp=xp, device=device),
+            X.dtype,
+            copy=False,
+        )
+
         # Assumption : X, Y have been pre-processed.
         # X shape: (n_samples, n_features)
         # Y shape: (n_samples, n_classes-1)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
-        if hidden_layer_sizes.min() < 1:
+        hidden_layer_sizes = xp.asarray(self.hidden_layer_sizes)
+        if xp.min(hidden_layer_sizes) < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {hidden_layer_sizes}")
         fn = resolve_activation(self.activation)[1]
@@ -65,22 +87,54 @@ class GFDL(BaseEstimator):
         rng = self.get_generator(self.seed)
 
         self.W_.append(
+            xp.astype(
+            move_to(
             self._weight_mode(
                 self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
-                )
+                ),
+            xp=xp,
+            device=device,
+            ),
+            X.dtype,
+            copy=False,
+            )
             )
         self.b_.append(
+            xp.astype(
+            move_to(
             self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-            .reshape(-1)
+            .reshape(-1),
+            xp=xp,
+            device=device,
+            ),
+            X.dtype,
+            copy=False,
+            )
             )
         for i, layer in enumerate(hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(
-                self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,)
+                xp.astype(
+                move_to(
+                self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,),
+                xp=xp,
+                device=device,
+                ),
+                X.dtype,
+                copy=False,
+                )
                 )
             # (n_hidden,)
             self.b_.append(
-                self._weight_mode(1, layer, rng=rng,).reshape(-1)
+                xp.astype(
+                move_to(
+                self._weight_mode(1, layer, rng=rng,).reshape(-1),
+                xp=xp,
+                device=device,
+                ),
+                X.dtype,
+                copy=False,
+                )
                 )
 
         # hypothesis space shape: (n_layers,)
@@ -95,7 +149,7 @@ class GFDL(BaseEstimator):
         # or (n_samples, sum_hidden)
         if self.direct_links:
             Hs.append(X)
-        D = np.hstack(Hs)
+        D = xp.concat(Hs, axis=1)
 
         # beta shape: (sum_hidden+n_features, n_classes-1)
         # or (sum_hidden, n_classes-1)
@@ -103,9 +157,12 @@ class GFDL(BaseEstimator):
         # If reg_alpha is None, use direct solve using
         # MoorePenrose Pseudo-Inverse, otherwise use ridge regularized form.
         if self.reg_alpha is None:
-            self.coeff_ = np.linalg.pinv(D, rtol=self.rtol) @ Y
+            self.coeff_ = xp.linalg.pinv(D, rtol=self.rtol) @ Y
         else:
-            ridge = Ridge(alpha=self.reg_alpha, fit_intercept=False)
+            ridge = Ridge(alpha=self.reg_alpha,
+                          fit_intercept=False,
+                          solver="svd",
+                          )
             ridge.fit(D, Y)
             self.coeff_ = ridge.coef_.T
         return self
@@ -229,6 +286,12 @@ class GFDL(BaseEstimator):
 
     def predict(self, X):
         check_is_fitted(self)
+        xp, _, device = get_namespace_and_device(X)
+        check_same_namespace(X, self, attribute="coeff_", method="predict")
+        default_float_dtype = _max_precision_float_dtype(xp, device)
+        if xp.isdtype(X.dtype, "integral"):
+            X = xp.astype(X, default_float_dtype)
+
         Hs = []
         H_prev = X
         for W, b in zip(self.W_, self.b_, strict=False):
@@ -238,7 +301,7 @@ class GFDL(BaseEstimator):
 
         if self.direct_links:
             Hs.append(X)
-        D = np.hstack(Hs)
+        D = xp.concat(Hs, axis=1)
         out = D @ self.coeff_
 
         return out
@@ -413,6 +476,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         # shape: (n_samples, n_features)
         X, Y = validate_data(self, X, y)
         self.classes_ = unique_labels(Y)
+        Y = _to_numpy_cpu_y(Y)
 
         # onehot y
         # (this is necessary for everything beyond binary classification)
@@ -513,7 +577,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         out = self.predict_proba(X)
-        y_hat = self.classes_[np.argmax(out, axis=1)]
+        xp, _, _device = get_namespace_and_device(self.coeff_)
+        y_hat = self.classes_[xp.argmax(out, axis=1)]
         return y_hat
 
     def predict_proba(self, X):
@@ -535,7 +600,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         out = super().predict(X)
-        out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
+        xp, _, _device = get_namespace_and_device(self.coeff_)
+        out = xp.exp(out - scipy.special.logsumexp(out, axis=1, keepdims=True))
         return out
 
 
@@ -1266,3 +1332,26 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         return super().predict(X)
+
+
+def _to_numpy_cpu_y(y):
+    """Convert label array y to a 1D NumPy array on CPU."""
+    # if y is None:
+    #     raise ValueError("y cannot be None for a supervised estimator.")
+
+    # PyTorch: handles CPU and CUDA tensors.
+    if hasattr(y, "detach") and hasattr(y, "cpu") and hasattr(y, "numpy"):
+        y = y.detach().cpu().numpy()
+
+    # CuPy: GPU -> CPU NumPy.
+    elif hasattr(y, "get"):
+        y = y.get()
+
+    # Generic fallback: NumPy, JAX CPU/device arrays, pandas, lists, etc.
+    else:
+        y = np.asarray(y)
+
+    # Normalize shape for sklearn classifier utilities.
+    y = column_or_1d(y, warn=True)
+
+    return y
