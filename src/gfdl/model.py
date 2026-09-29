@@ -58,8 +58,7 @@ class GFDL(BaseEstimator):
     def fit(self, X, Y):
         xp, _, device = get_namespace_and_device(X)
         default_float_dtype = _max_precision_float_dtype(xp, device)
-        if xp.isdtype(X.dtype, "integral"):
-            X = xp.astype(X, default_float_dtype)
+        X = xp.astype(X, default_float_dtype)
         Y = xp.astype(
             move_to(Y, xp=xp, device=device),
             X.dtype,
@@ -289,8 +288,7 @@ class GFDL(BaseEstimator):
         xp, _, device = get_namespace_and_device(X)
         check_same_namespace(X, self, attribute="coeff_", method="predict")
         default_float_dtype = _max_precision_float_dtype(xp, device)
-        if xp.isdtype(X.dtype, "integral"):
-            X = xp.astype(X, default_float_dtype)
+        X = xp.astype(X, default_float_dtype)
 
         Hs = []
         H_prev = X
