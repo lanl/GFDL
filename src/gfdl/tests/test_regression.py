@@ -1,11 +1,27 @@
+
+import os
+
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
+from sklearn import config_context
 from sklearn.base import clone
 from sklearn.datasets import fetch_openml, make_regression
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.utils.estimator_checks import parametrize_with_checks
+from sklearn.utils._array_api import (
+    get_namespace,
+    get_namespace_and_device,
+    move_to,
+)
+from sklearn.utils._testing import (
+    skip_if_array_api_compat_not_configured,
+)
+from sklearn.utils.estimator_checks import (
+    check_array_api_input_and_values,
+    parametrize_with_checks,
+)
 
 from gfdl.activations import ACTIVATIONS
 from gfdl.model import GFDLRegressor
@@ -257,3 +273,138 @@ def test_preserve_class_inputs():
     for k, v in actual.items():
         assert v == expected[k]
         assert isinstance(v, type(expected[k]))
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.skipif(
+    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
+)
+@parametrize_with_checks([GFDLRegressor()])
+def test_sklearn_array_api_conformance(estimator, check,):
+    with config_context(array_api_dispatch=True):
+        try:
+            check(estimator)
+        except Exception as exc:
+            if "NotAnArray" in repr(exc):
+                pytest.xfail(
+                    "Full check_estimator under array_api_dispatch=True is expected "
+                    "to fail on sklearn's NotAnArray sentinel."
+                )
+            raise
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.skipif(
+    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
+)
+@pytest.mark.parametrize("hidden_layer_sizes", [(100,), (100, 100)])
+@pytest.mark.parametrize("direct_links", [True, False])
+@pytest.mark.parametrize("activation", ["identity",
+                                        "relu",
+                                        "tanh",
+                                        ])
+@pytest.mark.parametrize("weight_scheme", ["normal",
+                                           "zeros",
+                                           ])
+@pytest.mark.parametrize("reg_alpha", [None, 0.1, 0.5, 1])
+@pytest.mark.parametrize("array_namespace",
+                         [
+                             "numpy",
+                             "torch"
+                          ],
+                         )
+def test_xp_check_values(hidden_layer_sizes,
+                         direct_links,
+                         activation,
+                         weight_scheme,
+                         reg_alpha,
+                         array_namespace,
+                         ):
+    """NumPy and Array API public attributes and predictions should be close"""
+
+    pytest.importorskip(array_namespace)
+
+    estimator = GFDLRegressor(
+        reg_alpha=reg_alpha,
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=direct_links,
+        seed=42,
+    )
+    with config_context(array_api_dispatch=True):
+        # Simulates from X, y = make_classification(n_samples=30, n_features=10)
+        # Unstable across backends for some weight schemes
+        check_array_api_input_and_values(
+            estimator.__class__.__name__,
+            estimator,
+            array_namespace=array_namespace,
+            device_name="cpu",
+        )
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.skipif(
+    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
+)
+@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
+@pytest.mark.parametrize("direct_links", [True, False])
+@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
+@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
+@pytest.mark.parametrize("reg_alpha", [None, 0.1, 0.5, 1])
+@pytest.mark.parametrize("array_namespace",
+                         [
+                             "numpy",
+                             "torch"
+                          ],
+                         )
+def test_xp_make_regression(hidden_layer_sizes,
+                            direct_links,
+                            activation,
+                            weight_scheme,
+                            reg_alpha,
+                            array_namespace,
+                            ):
+    """Custom make_regression()-based NumPy and array API matching"""
+    xp = pytest.importorskip(array_namespace)
+    with config_context(array_api_dispatch=True):
+        xp, _ = get_namespace(xp.zeros(2))
+
+    estimator = GFDLRegressor
+
+    random_state = 42
+    X_np, y_np = make_regression(
+        n_samples=250,
+        n_features=20,
+        n_informative=5,
+        n_targets=1,
+        random_state=random_state,
+    )
+
+    # NumPy .fit and .predict
+    model_np = estimator(
+        reg_alpha=reg_alpha,
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=direct_links,
+        seed=random_state,)
+    with config_context(array_api_dispatch=False):
+        model_np.fit(X_np, y_np)
+        y_pred_np = model_np.predict(X_np)
+        xp_np, _, device_np = get_namespace_and_device(
+            X_np
+        )
+
+    # xp (array API) .fit and .predict
+    model_xp = clone(model_np)
+    with config_context(array_api_dispatch=True):
+        X_xp = xp.asarray(X_np,)
+        y_xp = xp.asarray(y_np,)
+        model_xp.fit(X_xp, y_xp)
+        y_pred_xp = model_xp.predict(X_xp)
+
+    y_pred_xp = move_to(y_pred_xp, xp=xp_np, device=device_np)
+    model_xp_coeff_ = move_to(model_xp.coeff_, xp=xp_np, device=device_np)
+    assert_allclose(y_pred_np, y_pred_xp, atol=1e-5, rtol=1e-5)
+    assert_allclose(model_np.coeff_, model_xp_coeff_, atol=1e-5, rtol=1e-5)
