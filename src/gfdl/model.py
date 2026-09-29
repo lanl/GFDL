@@ -72,7 +72,7 @@ class GFDL(BaseEstimator):
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
         hidden_layer_sizes = xp.asarray(self.hidden_layer_sizes)
-        if min(hidden_layer_sizes) < 1:
+        if xp.min(hidden_layer_sizes) < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {hidden_layer_sizes}")
         fn = resolve_activation(self.activation)[1]
