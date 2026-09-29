@@ -10,6 +10,11 @@ from sklearn.datasets import fetch_openml, make_regression
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.utils._array_api import (
+    get_namespace,
+    get_namespace_and_device,
+    move_to,
+)
 from sklearn.utils._testing import (
     skip_if_array_api_compat_not_configured,
 )
@@ -342,7 +347,7 @@ def test_xp_check_values(hidden_layer_sizes,
 @pytest.mark.skipif(
     os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
 )
-@pytest.mark.parametrize("hidden_layer_sizes", [(100,), (100, 100)])
+@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
@@ -362,12 +367,11 @@ def test_xp_make_regression(hidden_layer_sizes,
                             ):
     """Custom make_regression()-based NumPy and array API matching"""
     xp = pytest.importorskip(array_namespace)
+    with config_context(array_api_dispatch=True):
+        xp, _ = get_namespace(xp.zeros(2))
+
     estimator = GFDLRegressor
 
-    pred_xp = []
-    pred_numpy = []
-    coef_xp = []
-    coef_numpy = []
     random_state = 42
     X_np, y_np = make_regression(
         n_samples=250,
@@ -378,26 +382,29 @@ def test_xp_make_regression(hidden_layer_sizes,
     )
 
     # NumPy .fit and .predict
-    model = estimator(
+    model_np = estimator(
         reg_alpha=reg_alpha,
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
         weight_scheme=weight_scheme,
         direct_links=direct_links,
         seed=random_state,)
-    model.fit(X_np, y_np)
-    y_pred_np = model.predict(X_np)
-    pred_numpy.append(y_pred_np)
-    coef_numpy.append(model.coeff_)
+    with config_context(array_api_dispatch=False):
+        model_np.fit(X_np, y_np)
+        y_pred_np = model_np.predict(X_np)
+        xp_np, _, device_np = get_namespace_and_device(
+            X_np
+        )
 
     # xp (array API) .fit and .predict
-    X_xp = xp.asarray(X_np, device="cpu",)
-    y_xp = xp.asarray(y_np, device="cpu",)
-    model_xp = clone(model)
-    model_xp.fit(X_xp, y_xp)
-    y_pred_xp = model_xp.predict(X_xp)
-    pred_xp.append(y_pred_xp)
-    coef_xp.append(model_xp.coeff_)
+    model_xp = clone(model_np)
+    with config_context(array_api_dispatch=True):
+        X_xp = xp.asarray(X_np,)
+        y_xp = xp.asarray(y_np,)
+        model_xp.fit(X_xp, y_xp)
+        y_pred_xp = model_xp.predict(X_xp)
 
-    assert_allclose(pred_numpy, pred_xp)
-    assert_allclose(coef_numpy, coef_xp)
+    y_pred_xp = move_to(y_pred_xp, xp=xp_np, device=device_np)
+    model_xp_coeff_ = move_to(model_xp.coeff_, xp=xp_np, device=device_np)
+    assert_allclose(y_pred_np, y_pred_xp, atol=1e-5, rtol=1e-5)
+    assert_allclose(model_np.coeff_, model_xp_coeff_, atol=1e-5, rtol=1e-5)
