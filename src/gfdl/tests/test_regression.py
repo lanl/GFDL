@@ -1,5 +1,4 @@
 
-import os
 
 import numpy as np
 import pytest
@@ -11,15 +10,15 @@ from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils._array_api import (
-    get_namespace,
-    get_namespace_and_device,
     move_to,
+    yield_namespace_device_dtype_combinations,
 )
 from sklearn.utils._testing import (
+    _array_api_for_tests,
     skip_if_array_api_compat_not_configured,
 )
 from sklearn.utils.estimator_checks import (
-    check_array_api_input_and_values,
+    check_array_api_input,
     parametrize_with_checks,
 )
 
@@ -276,9 +275,6 @@ def test_preserve_class_inputs():
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.skipif(
-    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
-)
 @parametrize_with_checks([GFDLRegressor()])
 def test_sklearn_array_api_conformance(estimator, check,):
     with config_context(array_api_dispatch=True):
@@ -294,35 +290,30 @@ def test_sklearn_array_api_conformance(estimator, check,):
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.skipif(
-    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
-)
-@pytest.mark.parametrize("hidden_layer_sizes", [(100,), (100, 100)])
+@pytest.mark.parametrize("hidden_layer_sizes", [(2,), (2, 2)])
 @pytest.mark.parametrize("direct_links", [True, False])
-@pytest.mark.parametrize("activation", ["identity",
-                                        "relu",
-                                        "tanh",
-                                        ])
-@pytest.mark.parametrize("weight_scheme", ["normal",
-                                           "zeros",
-                                           ])
-@pytest.mark.parametrize("reg_alpha", [None, 0.1, 0.5, 1])
-@pytest.mark.parametrize("array_namespace",
-                         [
-                             "numpy",
-                             "torch"
-                          ],
-                         )
-def test_xp_check_values(hidden_layer_sizes,
+@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
+@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
+@pytest.mark.parametrize("reg_alpha", [None, 0.1])
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
+def test_xp_check_inputs(hidden_layer_sizes,
                          direct_links,
                          activation,
                          weight_scheme,
                          reg_alpha,
                          array_namespace,
+                         device_name,
+                         dtype_name,
                          ):
-    """NumPy and Array API public attributes and predictions should be close"""
-
-    pytest.importorskip(array_namespace)
+    # NumPy and Array API public attributes and predictions should be close
+    if (array_namespace not in ["numpy", "torch"] or
+        device_name not in [None, "cpu"] or
+        dtype_name not in [None, "float64"]
+        ):
+        pytest.skip("unsupported configuration")
 
     estimator = GFDLRegressor(
         reg_alpha=reg_alpha,
@@ -335,54 +326,67 @@ def test_xp_check_values(hidden_layer_sizes,
     with config_context(array_api_dispatch=True):
         # Simulates from X, y = make_classification(n_samples=30, n_features=10)
         # Unstable across backends for some weight schemes
-        check_array_api_input_and_values(
+        check_array_api_input(
             estimator.__class__.__name__,
             estimator,
             array_namespace=array_namespace,
-            device_name="cpu",
+            device_name=device_name,
         )
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.skipif(
-    os.environ.get("SCIPY_ARRAY_API") != "1", reason="SCIPY_ARRAY_API not set to 1."
-)
 @pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
 @pytest.mark.parametrize("reg_alpha", [None, 0.1, 0.5, 1])
-@pytest.mark.parametrize("array_namespace",
-                         [
-                             "numpy",
-                             "torch"
-                          ],
-                         )
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
 def test_xp_make_regression(hidden_layer_sizes,
                             direct_links,
                             activation,
                             weight_scheme,
                             reg_alpha,
                             array_namespace,
+                            device_name,
+                            dtype_name,
                             ):
-    """Custom make_regression()-based NumPy and array API matching"""
-    xp = pytest.importorskip(array_namespace)
-    with config_context(array_api_dispatch=True):
-        xp, _ = get_namespace(xp.zeros(2))
+    # Custom make_regression()-based NumPy and array API matching
+    # This test is closely based on _check_array_api_core from sklearn.
+    # Here, we have better control of `atol`, `rtol`, and simulating data.
+    # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117
+    # Other Array API estimators like LogisticRegression also write custom tests to
+    # control `atol`, `rtol`, and simulating data.
+    # See: `test_logistic_regression_array_api_compliance` function
+    # `test_xp_check_inputs` uses sklearn utility already to check
+    # flanking test infracture.
+    if (array_namespace not in ["numpy", "torch"] or
+        device_name not in [None, "cpu"] or
+        dtype_name not in [None, "float64"]
+        ):
+        pytest.skip("unsupported configuration")
+    xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
 
+    atol = 1e-3
+    rtol = 1e-6
+    n_samples = 500
+    random_state = 42
     estimator = GFDLRegressor
 
-    random_state = 42
-    X_np, y_np = make_regression(
-        n_samples=250,
+    X, y = make_regression(
+        n_samples=n_samples,
         n_features=20,
         n_informative=5,
         n_targets=1,
         random_state=random_state,
     )
+    X = X.astype(dtype_name, copy=False)
+    X_xp = xp.asarray(X, device=device)
 
-    # NumPy .fit and .predict
-    model_np = estimator(
+    # NumPy .fit
+    est = estimator(
         reg_alpha=reg_alpha,
         hidden_layer_sizes=hidden_layer_sizes,
         activation=activation,
@@ -390,21 +394,42 @@ def test_xp_make_regression(hidden_layer_sizes,
         direct_links=direct_links,
         seed=random_state,)
     with config_context(array_api_dispatch=False):
-        model_np.fit(X_np, y_np)
-        y_pred_np = model_np.predict(X_np)
-        xp_np, _, device_np = get_namespace_and_device(
-            X_np
+        est.fit(X, y)
+
+    # xp (array API) .fit
+    est_xp = clone(est)
+    with config_context(array_api_dispatch=True):
+        est_xp.fit(X_xp, y)
+
+    # Check fitted attributes are close
+    array_attributes = {
+        key: value for key, value in vars(est).items() if isinstance(value, np.ndarray)
+    }
+    for attribute_name, attribute_value in array_attributes.items():
+        est_xp_attr = getattr(est_xp, attribute_name)
+        est_xp_attr_np = move_to(est_xp_attr, xp=np, device="cpu")
+        assert_allclose(
+            attribute_value,
+            est_xp_attr_np,
+            err_msg=f"{attribute_name} not the same",
+            atol=atol,
+            rtol=rtol,
         )
 
-    # xp (array API) .fit and .predict
-    model_xp = clone(model_np)
-    with config_context(array_api_dispatch=True):
-        X_xp = xp.asarray(X_np,)
-        y_xp = xp.asarray(y_np,)
-        model_xp.fit(X_xp, y_xp)
-        y_pred_xp = model_xp.predict(X_xp)
-
-    y_pred_xp = move_to(y_pred_xp, xp=xp_np, device=device_np)
-    model_xp_coeff_ = move_to(model_xp.coeff_, xp=xp_np, device=device_np)
-    assert_allclose(y_pred_np, y_pred_xp, atol=1e-5, rtol=1e-5)
-    assert_allclose(model_np.coeff_, model_xp_coeff_, atol=1e-5, rtol=1e-5)
+    # Check method outputs are close
+    methods = [
+        "predict",
+    ]
+    for method_name in methods:
+        with config_context(array_api_dispatch=False):
+            result = getattr(est, method_name)(X)
+        with config_context(array_api_dispatch=True):
+            result_xp = getattr(est_xp, method_name)(X_xp)
+        result_xp_np = move_to(result_xp, xp=np, device="cpu")
+        assert_allclose(
+            result,
+            result_xp_np,
+            err_msg=f"{method_name}() did not the return the same result",
+            atol=atol,
+            rtol=rtol,
+        )
