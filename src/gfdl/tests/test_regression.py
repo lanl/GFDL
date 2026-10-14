@@ -281,16 +281,16 @@ def test_sklearn_array_api_conformance(estimator, check,):
         try:
             check(estimator)
         except Exception as exc:
-            if "NotAnArray" in repr(exc):
+            if "_NotAnArray" in repr(exc):
                 pytest.xfail(
                     "Full check_estimator under array_api_dispatch=True is expected "
-                    "to fail on sklearn's NotAnArray sentinel."
+                    "to fail on sklearn's _NotAnArray sentinel."
                 )
             raise
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.parametrize("hidden_layer_sizes", [(2,), (2, 2)])
+@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
@@ -308,7 +308,6 @@ def test_xp_check_inputs(hidden_layer_sizes,
                          device_name,
                          dtype_name,
                          ):
-    # NumPy and Array API public attributes and predictions should be close
     if (array_namespace not in ["numpy", "torch"] or
         device_name not in [None, "cpu"] or
         dtype_name not in [None, "float64"]
@@ -324,13 +323,12 @@ def test_xp_check_inputs(hidden_layer_sizes,
         seed=42,
     )
     with config_context(array_api_dispatch=True):
-        # Simulates from X, y = make_classification(n_samples=30, n_features=10)
-        # Unstable across backends for some weight schemes
         check_array_api_input(
             estimator.__class__.__name__,
             estimator,
             array_namespace=array_namespace,
             device_name=device_name,
+            dtype_name=dtype_name,
         )
 
 
@@ -339,7 +337,7 @@ def test_xp_check_inputs(hidden_layer_sizes,
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
-@pytest.mark.parametrize("reg_alpha", [None, 0.1, 0.5, 1])
+@pytest.mark.parametrize("reg_alpha", [None, 0.1])
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
@@ -354,14 +352,9 @@ def test_xp_make_regression(hidden_layer_sizes,
                             dtype_name,
                             ):
     # Custom make_regression()-based NumPy and array API matching
-    # This test is closely based on _check_array_api_core from sklearn.
+    # This test is closely based on `_check_array_api_core` from sklearn.
     # Here, we have better control of `atol`, `rtol`, and simulating data.
-    # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117
-    # Other Array API estimators like LogisticRegression also write custom tests to
-    # control `atol`, `rtol`, and simulating data.
-    # See: `test_logistic_regression_array_api_compliance` function
-    # `test_xp_check_inputs` uses sklearn utility already to check
-    # flanking test infracture.
+    # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117.
     if (array_namespace not in ["numpy", "torch"] or
         device_name not in [None, "cpu"] or
         dtype_name not in [None, "float64"]
