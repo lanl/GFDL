@@ -1370,26 +1370,3 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         X = validate_data(self, X, reset=False,
                           dtype=[xp.float64, xp.float32])
         return super().predict(X)
-
-
-def _to_numpy_cpu_y(y):
-    """Convert label array y to a 1D NumPy array on CPU."""
-    # if y is None:
-    #     raise ValueError("y cannot be None for a supervised estimator.")
-
-    # PyTorch: handles CPU and CUDA tensors.
-    if hasattr(y, "detach") and hasattr(y, "cpu") and hasattr(y, "numpy"):
-        y = y.detach().cpu().numpy()
-
-    # CuPy: GPU -> CPU NumPy.
-    elif hasattr(y, "get"):
-        y = y.get()
-
-    # Generic fallback: NumPy, JAX CPU/device arrays, pandas, lists, etc.
-    else:
-        y = np.asarray(y)
-
-    # Normalize shape for sklearn classifier utilities.
-    y = column_or_1d(y, warn=True)
-
-    return y
