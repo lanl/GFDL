@@ -1,12 +1,25 @@
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from sklearn import config_context
 from sklearn.base import clone
 from sklearn.datasets import load_breast_cancer, load_digits, make_classification
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.utils.estimator_checks import parametrize_with_checks
+from sklearn.utils._array_api import (
+    move_to,
+    yield_namespace_device_dtype_combinations,
+)
+from sklearn.utils._testing import (
+    _array_api_for_tests,
+    skip_if_array_api_compat_not_configured,
+)
+from sklearn.utils.estimator_checks import (
+    check_array_api_input,
+    parametrize_with_checks,
+)
 from ucimlrepo import fetch_ucirepo
 
 from gfdl.activations import ACTIVATIONS
@@ -330,10 +343,10 @@ def test_soft_and_hard_can_differ(alpha):
 def test_invalid_activation_weight(Classifier):
     X = np.zeros((30, 4))
     y = np.zeros((30,))
-    invalid_act = Classifier(hidden_layer_sizes=100,
+    invalid_act = Classifier(hidden_layer_sizes=(100,),
                              activation="bogus_activation",
                              weight_scheme="uniform")
-    invalid_weight = Classifier(hidden_layer_sizes=100,
+    invalid_weight = Classifier(hidden_layer_sizes=(100,),
                                 activation="identity",
                                 weight_scheme="bogus_weight")
     # the sklearn estimator API bans input validation in __init__,
@@ -822,3 +835,158 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
     clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
     with pytest.raises(ValueError, match="must be > 0"):
         clf.fit(X, y)
+
+
+@skip_if_array_api_compat_not_configured
+@parametrize_with_checks([GFDLClassifier()])
+def test_sklearn_array_api_conformance(estimator, check,):
+    with config_context(array_api_dispatch=True):
+        try:
+            check(estimator)
+        except Exception as exc:
+            if "NotAnArray" in repr(exc):
+                pytest.xfail(
+                    "Full check_estimator under array_api_dispatch=True is expected "
+                    "to fail on sklearn's NotAnArray sentinel."
+                )
+            raise
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
+@pytest.mark.parametrize("direct_links", [True, False])
+@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
+@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
+@pytest.mark.parametrize("reg_alpha", [None, 0.1])
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
+def test_xp_check_inputs(hidden_layer_sizes,
+                         direct_links,
+                         activation,
+                         weight_scheme,
+                         reg_alpha,
+                         array_namespace,
+                         device_name,
+                         dtype_name,
+                         ):
+    if (array_namespace not in ["numpy", "torch"] or
+        device_name not in [None, "cpu"] or
+        dtype_name not in [None, "float64"]
+        ):
+        pytest.skip("unsupported configuration")
+
+    estimator = GFDLClassifier(
+        reg_alpha=reg_alpha,
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=direct_links,
+        seed=42,
+    )
+    with config_context(array_api_dispatch=True):
+        check_array_api_input(
+            estimator.__class__.__name__,
+            estimator,
+            array_namespace=array_namespace,
+            device_name=device_name,
+            dtype_name=dtype_name,
+        )
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
+@pytest.mark.parametrize("direct_links", [True, False])
+@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
+@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
+@pytest.mark.parametrize("reg_alpha", [None, 0.1])
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
+def test_xp_make_classification(hidden_layer_sizes,
+                            direct_links,
+                            activation,
+                            weight_scheme,
+                            reg_alpha,
+                            array_namespace,
+                            device_name,
+                            dtype_name,
+                            ):
+    # Custom make_regression()-based NumPy and array API matching
+    # This test is closely based on `_check_array_api_core` from sklearn.
+    # Here, we have better control of `atol`, `rtol`, and simulating data.
+    # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117.
+    if (array_namespace not in ["numpy", "torch"] or
+        device_name not in [None, "cpu"] or
+        dtype_name not in [None, "float64"]
+        ):
+        pytest.skip("unsupported configuration")
+    xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
+
+    atol = 1e-3
+    rtol = 1e-6
+    n_samples = 500
+    random_state = 42
+    estimator = GFDLClassifier
+
+    X, y = make_classification(
+        n_samples=n_samples,
+        n_features=20,
+        n_informative=5,
+        n_classes=2,
+        random_state=random_state,
+    )
+    X = X.astype(dtype_name, copy=False)
+    X_xp = xp.asarray(X, device=device)
+
+    # NumPy .fit
+    est = estimator(
+        reg_alpha=reg_alpha,
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=direct_links,
+        seed=random_state,)
+    with config_context(array_api_dispatch=False):
+        est.fit(X, y)
+
+    # xp (array API) .fit
+    est_xp = clone(est)
+    with config_context(array_api_dispatch=True):
+        est_xp.fit(X_xp, y)
+
+    # Check fitted attributes are close
+    array_attributes = {
+        key: value for key, value in vars(est).items() if isinstance(value, np.ndarray)
+    }
+    for attribute_name, attribute_value in array_attributes.items():
+        est_xp_attr = getattr(est_xp, attribute_name)
+        est_xp_attr_np = move_to(est_xp_attr, xp=np, device="cpu")
+        assert_allclose(
+            attribute_value,
+            est_xp_attr_np,
+            err_msg=f"{attribute_name} not the same",
+            atol=atol,
+            rtol=rtol,
+        )
+
+    # Check method outputs are close
+    methods = [
+        "predict",
+        "predict_proba",
+    ]
+    for method_name in methods:
+        with config_context(array_api_dispatch=False):
+            result = getattr(est, method_name)(X)
+        with config_context(array_api_dispatch=True):
+            result_xp = getattr(est_xp, method_name)(X_xp)
+        result_xp_np = move_to(result_xp, xp=np, device="cpu")
+        assert_allclose(
+            result,
+            result_xp_np,
+            err_msg=f"{method_name}() did not the return the same result",
+            atol=atol,
+            rtol=rtol,
+        )
