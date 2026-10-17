@@ -822,3 +822,23 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
     clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
     with pytest.raises(ValueError, match="must be > 0"):
         clf.fit(X, y)
+
+@pytest.mark.parametrize(
+    "Classifier",
+    [GFDLClassifier, EnsembleGFDLClassifier],
+)
+def test_scalar_hidden_layer_sizes(Classifier):
+    X, y = make_classification(
+        n_samples=60,
+        n_features=10,
+        n_informative=5,
+        random_state=42,
+    )
+
+    model = Classifier(hidden_layer_sizes=3, seed=0)
+    model.fit(X, y)
+
+    predictions = model.predict(X[:5])
+    assert predictions.shape == (5,)
+
+
