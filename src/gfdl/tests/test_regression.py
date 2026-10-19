@@ -308,11 +308,6 @@ def test_xp_check_inputs(hidden_layer_sizes,
                          device_name,
                          dtype_name,
                          ):
-    if (array_namespace not in ["numpy", "torch"] or
-        device_name not in [None, "cpu"] or
-        dtype_name not in [None, "float64"]
-        ):
-        pytest.skip("unsupported configuration")
 
     estimator = GFDLRegressor(
         reg_alpha=reg_alpha,
@@ -355,15 +350,10 @@ def test_xp_make_regression(hidden_layer_sizes,
     # This test is closely based on `_check_array_api_core` from sklearn.
     # Here, we have better control of `atol`, `rtol`, and simulating data.
     # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117.
-    if (array_namespace not in ["numpy", "torch"] or
-        device_name not in [None, "cpu"] or
-        dtype_name not in [None, "float64"]
-        ):
-        pytest.skip("unsupported configuration")
     xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
 
-    atol = 1e-3
-    rtol = 1e-6
+    atol = 1e-3 if dtype_name == "float64" else 1e-0
+    rtol = 1e-6 if dtype_name == "float64" else 1e-2
     n_samples = 500
     random_state = 42
     estimator = GFDLRegressor
