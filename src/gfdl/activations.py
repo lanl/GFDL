@@ -65,7 +65,8 @@ def sigmoid(z):
     --------
     scipy.special.expit : The logistic sigmoid function.
     """
-    return scipy.special.expit(z)
+    xp, _, _ = get_namespace_and_device(z)
+    return xp.exp(-xp.logaddexp(xp.zeros_like(z), -z))
 
 
 def identity(z):
@@ -147,7 +148,8 @@ def log_sigmoid(z):
     --------
     scipy.special.log_expit : The logistic sigmoid function.
     """
-    return scipy.special.log_expit(z)
+    xp, _, _ = get_namespace_and_device(z)
+    return -xp.logaddexp(xp.zeros_like(z), -z)
 
 
 def log_softmax(z):
