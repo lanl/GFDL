@@ -549,7 +549,10 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         if not hasattr(self, "classes_"):
             if classes is None:
                 raise TypeError("Classes must not be None for first partial_fit call")
-            self.classes_ = unique_labels(classes)
+            classes = unique_labels(
+                move_to(classes, xp=np, device="cpu")
+            )
+            self.classes_ = classes
             self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
             self.enc_.fit(self.classes_.reshape(-1, 1))
 
