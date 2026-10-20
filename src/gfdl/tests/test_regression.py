@@ -333,6 +333,7 @@ def test_xp_check_inputs(hidden_layer_sizes,
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
 @pytest.mark.parametrize("reg_alpha", [None, 0.1])
+@pytest.mark.parametrize("partial_fit", [False, True])
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
@@ -345,6 +346,7 @@ def test_xp_make_regression(hidden_layer_sizes,
                             array_namespace,
                             device_name,
                             dtype_name,
+                            partial_fit,
                             ):
     # Custom make_regression()-based NumPy and array API matching
     # This test is closely based on `_check_array_api_core` from sklearn.
@@ -354,9 +356,20 @@ def test_xp_make_regression(hidden_layer_sizes,
 
     atol = 1e-3 if dtype_name == "float64" else 1e-0
     rtol = 1e-6 if dtype_name == "float64" else 1e-2
+    if partial_fit:
+        atol *= 1e1
+        rtol *= 1e1
     n_samples = 500
     random_state = 42
     estimator = GFDLRegressor
+
+    def run_partial_fit(X, y, model):
+        batch = 25
+        for start in range(0, X.shape[0], batch):
+            end = min(start + batch, X.shape[0])
+            Xb = X[start:end, :]
+            yb = y[start:end]
+            model.partial_fit(Xb, yb)
 
     X, y = make_regression(
         n_samples=n_samples,
@@ -377,12 +390,18 @@ def test_xp_make_regression(hidden_layer_sizes,
         direct_links=direct_links,
         seed=random_state,)
     with config_context(array_api_dispatch=False):
-        est.fit(X, y)
+        if partial_fit:
+            run_partial_fit(X, y, est)
+        else:
+            est.fit(X, y)
 
     # xp (array API) .fit
     est_xp = clone(est)
     with config_context(array_api_dispatch=True):
-        est_xp.fit(X_xp, y)
+        if partial_fit:
+            run_partial_fit(X_xp, y, est_xp)
+        else:
+            est_xp.fit(X_xp, y)
 
     # Check fitted attributes are close
     array_attributes = {
