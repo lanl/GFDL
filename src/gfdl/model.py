@@ -549,7 +549,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         if not hasattr(self, "classes_"):
             if classes is None:
                 raise TypeError("Classes must not be None for first partial_fit call")
-            self.classes_ = classes
+            self.classes_ = unique_labels(classes)
             self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
             self.enc_.fit(self.classes_.reshape(-1, 1))
 
@@ -583,8 +583,8 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         X = validate_data(self, X, reset=False,
                           dtype=[xp.float64, xp.float32])
         out = self.predict_proba(X)
-        xp, _, _device = get_namespace_and_device(self.coeff_)
-        y_hat = self.classes_[xp.argmax(out, axis=1)]
+        classes = move_to(self.classes_, xp=xp, device=device)
+        y_hat = classes[xp.argmax(out, axis=1)]
         return y_hat
 
     def predict_proba(self, X):

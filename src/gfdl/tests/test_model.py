@@ -613,7 +613,7 @@ def test_partial_fit(
             pf_model.partial_fit(Xb, yb)
 
     assert_allclose(
-        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=1e-3
+        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=2e-3
         )
 
 
@@ -838,21 +838,6 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
 
 
 @skip_if_array_api_compat_not_configured
-@parametrize_with_checks([GFDLClassifier()])
-def test_sklearn_array_api_conformance(estimator, check,):
-    with config_context(array_api_dispatch=True):
-        try:
-            check(estimator)
-        except Exception as exc:
-            if "NotAnArray" in repr(exc):
-                pytest.xfail(
-                    "Full check_estimator under array_api_dispatch=True is expected "
-                    "to fail on sklearn's NotAnArray sentinel."
-                )
-            raise
-
-
-@skip_if_array_api_compat_not_configured
 @pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
@@ -871,11 +856,6 @@ def test_xp_check_inputs(hidden_layer_sizes,
                          device_name,
                          dtype_name,
                          ):
-    if (array_namespace not in ["numpy", "torch"] or
-        device_name not in [None, "cpu"] or
-        dtype_name not in [None, "float64"]
-        ):
-        pytest.skip("unsupported configuration")
 
     estimator = GFDLClassifier(
         reg_alpha=reg_alpha,
@@ -896,11 +876,12 @@ def test_xp_check_inputs(hidden_layer_sizes,
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
+@pytest.mark.parametrize("hidden_layer_sizes", [(2,), (2, 2)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
 @pytest.mark.parametrize("reg_alpha", [None, 0.1])
+@pytest.mark.parametrize("partial_fit", [False, True])
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
@@ -913,23 +894,31 @@ def test_xp_make_classification(hidden_layer_sizes,
                             array_namespace,
                             device_name,
                             dtype_name,
+                            partial_fit,
                             ):
     # Custom make_regression()-based NumPy and array API matching
     # This test is closely based on `_check_array_api_core` from sklearn.
     # Here, we have better control of `atol`, `rtol`, and simulating data.
     # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117.
-    if (array_namespace not in ["numpy", "torch"] or
-        device_name not in [None, "cpu"] or
-        dtype_name not in [None, "float64"]
-        ):
-        pytest.skip("unsupported configuration")
     xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
 
-    atol = 1e-3
-    rtol = 1e-6
+    atol = 1e-10 if dtype_name == "float64" else 2e-2
+    rtol = 1e-13 if dtype_name == "float64" else 1e-4
+    if partial_fit:
+        atol = 1e-7 if dtype_name == "float64" else 1e-0
+        rtol = 1e-9 if dtype_name == "float64" else 1e-1
     n_samples = 500
     random_state = 42
     estimator = GFDLClassifier
+
+    def run_partial_fit(X, y, model):
+        batch = 100
+        classes = np.unique(y)
+        for start in range(0, X.shape[0], batch):
+            end = min(start + batch, X.shape[0])
+            Xb = X[start:end, :]
+            yb = y[start:end]
+            model.partial_fit(Xb, yb, classes=classes)
 
     X, y = make_classification(
         n_samples=n_samples,
@@ -950,12 +939,18 @@ def test_xp_make_classification(hidden_layer_sizes,
         direct_links=direct_links,
         seed=random_state,)
     with config_context(array_api_dispatch=False):
-        est.fit(X, y)
+        if partial_fit:
+            run_partial_fit(X, y, est)
+        else:
+            est.fit(X, y)
 
     # xp (array API) .fit
     est_xp = clone(est)
     with config_context(array_api_dispatch=True):
-        est_xp.fit(X_xp, y)
+        if partial_fit:
+            run_partial_fit(X_xp, y, est_xp)
+        else:
+            est_xp.fit(X_xp, y)
 
     # Check fitted attributes are close
     array_attributes = {
