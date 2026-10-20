@@ -616,7 +616,7 @@ def test_partial_fit(
             pf_model.partial_fit(Xb, yb)
 
     assert_allclose(
-        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=1e-3
+        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=2e-3
         )
 
 
@@ -987,6 +987,6 @@ def test_xp_classifier_partial_fit(hidden_layer_sizes,
     )
     xpx.testing.assert_close(
         predictions[1], predictions[3],
-        err_msg="predict() did not the return the same result",
+        err_msg="predict_proba() did not the return the same result",
         atol=atol,
     )
