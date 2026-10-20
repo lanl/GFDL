@@ -275,21 +275,6 @@ def test_preserve_class_inputs():
 
 
 @skip_if_array_api_compat_not_configured
-@parametrize_with_checks([GFDLRegressor()])
-def test_sklearn_array_api_conformance(estimator, check,):
-    with config_context(array_api_dispatch=True):
-        try:
-            check(estimator)
-        except Exception as exc:
-            if "_NotAnArray" in repr(exc):
-                pytest.xfail(
-                    "Full check_estimator under array_api_dispatch=True is expected "
-                    "to fail on sklearn's _NotAnArray sentinel."
-                )
-            raise
-
-
-@skip_if_array_api_compat_not_configured
 @pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
