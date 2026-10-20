@@ -328,7 +328,7 @@ def test_xp_check_inputs(hidden_layer_sizes,
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
+@pytest.mark.parametrize("hidden_layer_sizes", [(2,), (2, 2)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
@@ -354,17 +354,22 @@ def test_xp_make_regression(hidden_layer_sizes,
     # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117.
     xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
 
-    atol = 1e-3 if dtype_name == "float64" else 1e-0
-    rtol = 1e-6 if dtype_name == "float64" else 1e-2
+    # torch float64 (MacOS) .fit() : 13/720 fail with atol=1e-11 & rtol=1e-14
+    # torch float32 (MacOS) .fit() : 5/720 fail with atol=1e-2 & rtol=1e-4
+    # torch float64 (MacOS) .partial_fit() : 23/720 fail with atol=1e-7 & rtol=1e-9
+    # torch float32 (MacOS) .partial_fit() : 10/720 fail with atol=1e1 & rtol=1e-3
+    # Increased by order of magnitude from notes above for Linux
+    atol = 1e-9 if dtype_name == "float64" else 1e-1
+    rtol = 1e-12 if dtype_name == "float64" else 1e-3
     if partial_fit:
-        atol *= 1e1
-        rtol *= 1e1
+        atol = 1e-6 if dtype_name == "float64" else 1e-0
+        rtol = 1e-8 if dtype_name == "float64" else 1e-1
     n_samples = 500
     random_state = 42
     estimator = GFDLRegressor
 
     def run_partial_fit(X, y, model):
-        batch = 25
+        batch = 100
         for start in range(0, X.shape[0], batch):
             end = min(start + batch, X.shape[0])
             Xb = X[start:end, :]

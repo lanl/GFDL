@@ -2,7 +2,6 @@
 Activation functions for Gradient Free Deep Learning estimators.
 """
 
-import scipy
 from sklearn.utils._array_api import get_namespace_and_device
 
 
@@ -104,7 +103,10 @@ def softmax(z):
     --------
     scipy.special.softmax : The softmax function.
     """
-    return scipy.special.softmax(z, axis=-1)
+    xp, _, _ = get_namespace_and_device(z)
+    tmp = z - xp.max(z, axis=1, keepdims=True)
+    exp_tmp = xp.exp(tmp)
+    return exp_tmp / xp.sum(exp_tmp, axis=1, keepdims=True)
 
 
 def softmin(z):
@@ -170,7 +172,11 @@ def log_softmax(z):
     --------
     scipy.special.log_softmax : The logarithm of softmax function.
     """
-    return scipy.special.log_softmax(z, axis=-1)
+    xp, _, _ = get_namespace_and_device(z)
+    shifted = z - xp.max(z, axis=1, keepdims=True)
+    return shifted - xp.log(
+        xp.sum(xp.exp(shifted), axis=1, keepdims=True)
+    )
 
 
 ACTIVATIONS = {
