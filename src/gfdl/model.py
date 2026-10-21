@@ -24,7 +24,7 @@ from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import check_classification_targets, unique_labels
 from sklearn.utils.validation import check_is_fitted, validate_data
 
-from gfdl.activations import resolve_activation
+from gfdl.activations import resolve_activation, softmax
 from gfdl.weights import resolve_weight
 
 
@@ -264,7 +264,7 @@ class GFDL(BaseEstimator):
                 coef = xp.squeeze(coef, axis=-1)
             self.coeff_ = coef
         else:
-            # scipy.linalg.solve(self.A + reg_mat, self.B)
+            # xp.linalg.solve(self.A + reg_mat, self.B)
             # is equivalent to
             # ridge = Ridge(
             #   alpha=self.reg_alpha, fit_intercept=False, solver='cholesky'
@@ -531,7 +531,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         ``Ridge()`` as we do in full fit. In ``partial_fit()`` we never have access to
         the full design matrix, we only persist the aggregate quantities
         ``D.T @ D``, ``D.T @ y``. Instead, for the regularized case, we directly solve
-        the system using ``scipy.linalg.solve(A + reg_mat, B)``, which is mathematically
+        the system using ``xp.linalg.solve(A + reg_mat, B)``, which is mathematically
         equivalent to scikit-learn's ``Ridge(solver='cholesky')``.
 
         One other difference between full fit and partial fit arises in the direct
@@ -612,9 +612,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         X = validate_data(self, X, reset=False,
                           dtype=[xp.float64, xp.float32])
         out = super().predict(X)
-        xp, _, _device = get_namespace_and_device(self.coeff_)
-        out = xp.exp(out - scipy.special.logsumexp(out, axis=1, keepdims=True))
-        return out
+        return softmax(out)
 
 
 class EnsembleGFDL(BaseEstimator):
