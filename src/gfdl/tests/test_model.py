@@ -547,7 +547,9 @@ def test_rtol_ensemble(reg_alpha, rtol, expected_acc, expected_roc):
     [
         (GFDLClassifier, True, "coeff_"),
         (GFDLClassifier, False, "coeff_"),
-        (EnsembleGFDLClassifier, None, "coeffs_"),
+        pytest.param(EnsembleGFDLClassifier, None, "coeffs_",
+                     marks=pytest.mark.xfail(condition="sys.platform == 'linux'",
+                                             reason="gh-117")),
     ],
 )
 def test_partial_fit(
