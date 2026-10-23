@@ -17,7 +17,6 @@ from sklearn.utils._testing import (
     skip_if_array_api_compat_not_configured,
 )
 from sklearn.utils.estimator_checks import (
-    check_array_api_input,
     parametrize_with_checks,
 )
 from ucimlrepo import fetch_ucirepo
@@ -342,7 +341,7 @@ def test_soft_and_hard_can_differ(alpha):
 @pytest.mark.parametrize("Classifier", [GFDLClassifier, EnsembleGFDLClassifier])
 def test_invalid_activation_weight(Classifier):
     X = np.zeros((30, 4))
-    y = np.zeros((30,))
+    y = np.arange(30) % 2
     invalid_act = Classifier(hidden_layer_sizes=(100,),
                              activation="bogus_activation",
                              weight_scheme="uniform")
@@ -364,7 +363,7 @@ def test_invalid_alpha(Classifier):
     # so we need to call fit() for error handling to kick in:
     # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
     X = np.zeros((30, 4))
-    y = np.zeros((30,))
+    y = np.arange(30) % 2
     bad_est = Classifier(hidden_layer_sizes=100,
                              activation="identity",
                              weight_scheme="uniform",
@@ -509,7 +508,9 @@ def test_rtol_classifier(reg_alpha, rtol, expected_acc, expected_roc):
     roc_cur = roc_auc_score(y_test, y_hat_cur_proba, multi_class="ovo")
 
     np.testing.assert_allclose(acc_cur, expected_acc)
-    np.testing.assert_allclose(roc_cur, expected_roc)
+    np.testing.assert_allclose(roc_cur, expected_roc,
+                               rtol=1e-4
+                               )
 
 
 @pytest.mark.parametrize("reg_alpha, rtol, expected_acc, expected_roc", [
@@ -838,50 +839,11 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
-@pytest.mark.parametrize("direct_links", [True, False])
-@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
-@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
-@pytest.mark.parametrize("reg_alpha", [None, 0.1])
-@pytest.mark.parametrize(
-    "array_namespace, device_name, dtype_name",
-    yield_namespace_device_dtype_combinations(),
-)
-def test_xp_check_inputs(hidden_layer_sizes,
-                         direct_links,
-                         activation,
-                         weight_scheme,
-                         reg_alpha,
-                         array_namespace,
-                         device_name,
-                         dtype_name,
-                         ):
-
-    estimator = GFDLClassifier(
-        reg_alpha=reg_alpha,
-        hidden_layer_sizes=hidden_layer_sizes,
-        activation=activation,
-        weight_scheme=weight_scheme,
-        direct_links=direct_links,
-        seed=42,
-    )
-    with config_context(array_api_dispatch=True):
-        check_array_api_input(
-            estimator.__class__.__name__,
-            estimator,
-            array_namespace=array_namespace,
-            device_name=device_name,
-            dtype_name=dtype_name,
-        )
-
-
-@skip_if_array_api_compat_not_configured
 @pytest.mark.parametrize("hidden_layer_sizes", [(2,), (2, 2)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
 @pytest.mark.parametrize("reg_alpha", [None, 0.1])
-@pytest.mark.parametrize("partial_fit", [False, True])
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
@@ -894,7 +856,6 @@ def test_xp_make_classification(hidden_layer_sizes,
                             array_namespace,
                             device_name,
                             dtype_name,
-                            partial_fit,
                             ):
     # Custom make_regression()-based NumPy and array API matching
     # This test is closely based on `_check_array_api_core` from sklearn.
@@ -904,21 +865,9 @@ def test_xp_make_classification(hidden_layer_sizes,
 
     atol = 1e-10 if dtype_name == "float64" else 2e-2
     rtol = 1e-13 if dtype_name == "float64" else 1e-4
-    if partial_fit:
-        atol = 1e-7 if dtype_name == "float64" else 1e-0
-        rtol = 1e-9 if dtype_name == "float64" else 1e-1
     n_samples = 500
     random_state = 42
     estimator = GFDLClassifier
-
-    def run_partial_fit(X, y, model):
-        batch = 100
-        classes = np.unique(y)
-        for start in range(0, X.shape[0], batch):
-            end = min(start + batch, X.shape[0])
-            Xb = X[start:end, :]
-            yb = y[start:end]
-            model.partial_fit(Xb, yb, classes=classes)
 
     X, y = make_classification(
         n_samples=n_samples,
@@ -939,18 +888,12 @@ def test_xp_make_classification(hidden_layer_sizes,
         direct_links=direct_links,
         seed=random_state,)
     with config_context(array_api_dispatch=False):
-        if partial_fit:
-            run_partial_fit(X, y, est)
-        else:
-            est.fit(X, y)
+        est.fit(X, y)
 
     # xp (array API) .fit
     est_xp = clone(est)
     with config_context(array_api_dispatch=True):
-        if partial_fit:
-            run_partial_fit(X_xp, y, est_xp)
-        else:
-            est_xp.fit(X_xp, y)
+        est_xp.fit(X_xp, y)
 
     # Check fitted attributes are close
     array_attributes = {

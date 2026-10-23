@@ -13,10 +13,11 @@ from sklearn.base import (
     RegressorMixin,
 )
 from sklearn.linear_model import Ridge
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import LabelBinarizer, OneHotEncoder
 from sklearn.utils import column_or_1d
 from sklearn.utils._array_api import (
     check_same_namespace,
+    get_namespace,
     get_namespace_and_device,
     move_to,
 )
@@ -471,19 +472,21 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         xp, _, _ = get_namespace_and_device(X)
         X, Y = validate_data(self, X, y,
                              dtype=[xp.float64, xp.float32])
-        xp, _, device = get_namespace_and_device(X)
-        self.classes_ = move_to(
-            unique_labels(Y),
-            xp=xp,
-            device=device,
-        )
-        Y = move_to(Y, xp=np, device="cpu")
 
-        # onehot y
-        # (this is necessary for everything beyond binary classification)
-        self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-        # shape: (n_samples, n_classes-1)
-        Y = self.enc_.fit_transform(Y.reshape(-1, 1))
+        Y = column_or_1d(Y, warn=True)
+        check_classification_targets(Y)
+
+        self.enc_ = LabelBinarizer(sparse_output=False)
+        Y = self.enc_.fit_transform(Y)
+        self.classes_ = self.enc_.classes_
+
+        # Preserve two columns for binary classification.
+        if self.classes_.shape[0] == 2:
+            xp_y, _ = get_namespace(Y)
+            Y = xp_y.concat((1 - Y, Y), axis=1)
+
+        if self.classes_.shape[0] < 2:
+            raise ValueError("y must contain more than 1 class.")
 
         # call base fit method
         super().fit(X, Y)
@@ -549,19 +552,29 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         if not hasattr(self, "classes_"):
             if classes is None:
                 raise TypeError("Classes must not be None for first partial_fit call")
-            classes = unique_labels(
-                move_to(classes, xp=np, device="cpu")
-            )
-            self.classes_ = classes
-            self.enc_ = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-            self.enc_.fit(self.classes_.reshape(-1, 1))
+            xp_y, _, device_y_ = get_namespace_and_device(Y)
+            classes = move_to(classes, xp=xp_y, device=device_y_)
+            self.enc_ = LabelBinarizer(sparse_output=False).fit(classes)
+            self.classes_ = self.enc_.classes_
+            if self.classes_.shape[0] < 2:
+                raise ValueError("classes must contain more than 1 class")
 
-        if not set(unique_labels(Y)) <= set(self.classes_):
+        # Check membership without Python sets or converting labels to NumPy.
+        xp_y, _, device_y = get_namespace_and_device(self.classes_)
+        Y = move_to(Y, xp=xp_y, device=device_y)
+        matches = xp_y.expand_dims(Y, axis=1) == xp_y.expand_dims(
+            self.classes_, axis=0
+        )
+        if not xp_y.all(xp_y.any(matches, axis=1)):
             raise ValueError(
-                f"Expected only labels in classes_ = {list(self.classes_)!r}, "
-                f"but got {unique_labels(Y)!r}."
+                f"Expected only labels in classes_ = {self.classes_!r},"
+                f"but got {unique_labels(y)!r}."
             )
         Y = self.enc_.transform(Y.reshape(-1, 1))
+
+        # Preserve two output columns for binary classification.
+        if self.classes_.shape[0] == 2:
+            Y = xp_y.concat((1 - Y, Y), axis=1)
 
         super().partial_fit(X, Y)
         return self
@@ -582,7 +595,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         """
         check_is_fitted(self)
         check_same_namespace(X, self, attribute="coeff_", method="predict")
-        xp, _, _ = get_namespace_and_device(X)
+        xp, _, device = get_namespace_and_device(X)
         X = validate_data(self, X, reset=False,
                           dtype=[xp.float64, xp.float32])
         out = self.predict_proba(X)
@@ -608,7 +621,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         """
         check_is_fitted(self)
         check_same_namespace(X, self, attribute="coeff_", method="predict_proba")
-        xp, _, _ = get_namespace_and_device(X)
+        xp, _ = get_namespace(X)
         X = validate_data(self, X, reset=False,
                           dtype=[xp.float64, xp.float32])
         out = super().predict(X)
