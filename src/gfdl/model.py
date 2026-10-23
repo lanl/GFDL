@@ -16,7 +16,6 @@ from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import column_or_1d
 from sklearn.utils._array_api import (
-    _max_precision_float_dtype,
     check_same_namespace,
     get_namespace_and_device,
     move_to,
@@ -57,9 +56,6 @@ class GFDL(BaseEstimator):
 
     def fit(self, X, Y):
         xp, _, device = get_namespace_and_device(X)
-        if not xp.isdtype(X.dtype, "real floating"):
-            default_float_dtype = _max_precision_float_dtype(xp, device)
-            X = xp.astype(X, default_float_dtype)
         Y = xp.astype(
             move_to(Y, xp=xp, device=device),
             X.dtype,
@@ -87,53 +83,37 @@ class GFDL(BaseEstimator):
         rng = self.get_generator(self.seed)
 
         self.W_.append(
-            xp.astype(
-            move_to(
+            xp.asarray(
             self._weight_mode(
                 self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
                 ),
-            xp=xp,
+            dtype=X.dtype,
             device=device,
-            ),
-            X.dtype,
-            copy=False,
             )
-            )
+        )
         self.b_.append(
-            xp.astype(
-            move_to(
+            xp.asarray(
             self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
             .reshape(-1),
-            xp=xp,
+            dtype=X.dtype,
             device=device,
-            ),
-            X.dtype,
-            copy=False,
             )
             )
         for i, layer in enumerate(hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(
-                xp.astype(
-                move_to(
+                xp.asarray(
                 self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,),
-                xp=xp,
+                dtype=X.dtype,
                 device=device,
-                ),
-                X.dtype,
-                copy=False,
                 )
                 )
             # (n_hidden,)
             self.b_.append(
-                xp.astype(
-                move_to(
+                xp.asarray(
                 self._weight_mode(1, layer, rng=rng,).reshape(-1),
-                xp=xp,
+                dtype=X.dtype,
                 device=device,
-                ),
-                X.dtype,
-                copy=False,
                 )
                 )
 
@@ -191,9 +171,6 @@ class GFDL(BaseEstimator):
         # It's evident that it is indeed possible to update normal equations
         # through summation
         xp, _, device = get_namespace_and_device(X)
-        if not xp.isdtype(X.dtype, "real floating"):
-            default_float_dtype = _max_precision_float_dtype(xp, device)
-            X = xp.astype(X, default_float_dtype)
         y = xp.astype(
             move_to(y, xp=xp, device=device),
             X.dtype,
@@ -316,7 +293,9 @@ class GFDL(BaseEstimator):
 
         if self.reg_alpha is None:
             coef = xp.linalg.pinv(self.A, rtol=self.rtol) @ self.B
-            self.coeff_ = xp.squeeze(coef, axis=-1)
+            if coef.ndim == 2 and coef.shape[1] == 1:
+                coef = xp.squeeze(coef, axis=-1)
+            self.coeff_ = coef
         else:
             # scipy.linalg.solve(self.A + reg_mat, self.B)
             # is equivalent to
@@ -337,16 +316,15 @@ class GFDL(BaseEstimator):
             coef = xp.linalg.solve(
                 self.A + reg_mat, self.B
             )
-            self.coeff_ = xp.squeeze(coef, axis=-1)
+            if coef.ndim == 2 and coef.shape[1] == 1:
+                coef = xp.squeeze(coef, axis=-1)
+            self.coeff_ = coef
         return self
 
     def predict(self, X):
         check_is_fitted(self)
-        xp, _, device = get_namespace_and_device(X)
+        xp, _, _ = get_namespace_and_device(X)
         check_same_namespace(X, self, attribute="coeff_", method="predict")
-        if not xp.isdtype(X.dtype, "real floating"):
-            default_float_dtype = _max_precision_float_dtype(xp, device)
-            X = xp.astype(X, default_float_dtype)
 
         Hs = []
         H_prev = X
@@ -530,7 +508,9 @@ class GFDLClassifier(ClassifierMixin, GFDL):
           Fitted estimator.
         """
         # shape: (n_samples, n_features)
-        X, Y = validate_data(self, X, y)
+        xp, _, _ = get_namespace_and_device(X)
+        X, Y = validate_data(self, X, y,
+                             dtype=[xp.float64, xp.float32])
         self.classes_ = unique_labels(Y)
 
         # onehot y
@@ -594,7 +574,9 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         numerical stability and avoid loss of information.
         """
         # shape: (n_samples, n_features)
-        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
+        xp, _, _ = get_namespace_and_device(X)
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"),
+                             dtype=[xp.float64, xp.float32])
         Y = column_or_1d(Y, warn=True)
         check_classification_targets(Y)
 
@@ -630,7 +612,9 @@ class GFDLClassifier(ClassifierMixin, GFDL):
           The predicted classes, with shape (n_samples,) or (n_samples, n_outputs).
         """
         check_is_fitted(self)
-        X = validate_data(self, X, reset=False)
+        xp, _, _ = get_namespace_and_device(X)
+        X = validate_data(self, X, reset=False,
+                          dtype=[xp.float64, xp.float32])
         out = self.predict_proba(X)
         y_hat = self.classes_[np.argmax(out, axis=1)]
         return y_hat
@@ -652,7 +636,9 @@ class GFDLClassifier(ClassifierMixin, GFDL):
           have shape (n_samples, n_classes).
         """
         check_is_fitted(self)
-        X = validate_data(self, X, reset=False)
+        xp, _, _ = get_namespace_and_device(X)
+        X = validate_data(self, X, reset=False,
+                          dtype=[xp.float64, xp.float32])
         out = super().predict(X)
         out = np.exp(out - logsumexp(out, axis=1, keepdims=True))
         return out
@@ -995,7 +981,9 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
           The fitted estimator.
         """
         # shape: (n_samples, n_features)
-        X, Y = validate_data(self, X, y)
+        xp, _, _ = get_namespace_and_device(X)
+        X, Y = validate_data(self, X, y,
+                             dtype=[xp.float64, xp.float32])
         self.classes_ = unique_labels(Y)
 
         # onehot y
@@ -1059,7 +1047,9 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
         numerical stability and avoid loss of information.
         """
         # shape: (n_samples, n_features)
-        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
+        xp, _, _ = get_namespace_and_device(X)
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"),
+                             dtype=[xp.float64, xp.float32])
         Y = column_or_1d(Y, warn=True)
         check_classification_targets(Y)
 
@@ -1107,7 +1097,9 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
           have shape (n_samples, n_classes).
         """
         check_is_fitted(self)
-        X = validate_data(self, X, reset=False)
+        xp, _, _ = get_namespace_and_device(X)
+        X = validate_data(self, X, reset=False,
+                          dtype=[xp.float64, xp.float32])
 
         outs = self._forward(X)
         probs = []
@@ -1133,7 +1125,9 @@ class EnsembleGFDLClassifier(ClassifierMixin, EnsembleGFDL):
           The predicted classes, with shape (n_samples,) or (n_samples, n_outputs).
         """
         check_is_fitted(self)
-        X = validate_data(self, X, reset=False)
+        xp, _, _ = get_namespace_and_device(X)
+        X = validate_data(self, X, reset=False,
+                          dtype=[xp.float64, xp.float32])
 
         if self.voting == "soft":
             P = self.predict_proba(X)
@@ -1312,7 +1306,9 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         object
           The fitted estimator.
         """
-        X, Y = validate_data(self, X, y, multi_output=True)
+        xp, _, _ = get_namespace_and_device(X)
+        X, Y = validate_data(self, X, y, multi_output=True,
+                             dtype=[xp.float64, xp.float32])
         super().fit(X, Y)
         return self
 
@@ -1360,7 +1356,9 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
         the condition number is squared. This may require a lower ``rtol`` to maintain
         numerical stability and avoid loss of information.
         """
-        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"))
+        xp, _, _ = get_namespace_and_device(X)
+        X, Y = validate_data(self, X, y, reset=not hasattr(self, "n_features_in_"),
+                             dtype=[xp.float64, xp.float32])
         if Y.ndim == 1:
             Y = Y.reshape(-1, 1)
         super().partial_fit(X, Y)
@@ -1383,5 +1381,7 @@ class GFDLRegressor(RegressorMixin, MultiOutputMixin, GFDL):
           (n_samples, n_outputs).
         """
         check_is_fitted(self)
-        X = validate_data(self, X, reset=False)
+        xp, _, _ = get_namespace_and_device(X)
+        X = validate_data(self, X, reset=False,
+                          dtype=[xp.float64, xp.float32])
         return super().predict(X)
