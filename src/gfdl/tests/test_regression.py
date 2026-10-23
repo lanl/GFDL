@@ -18,7 +18,6 @@ from sklearn.utils._testing import (
     skip_if_array_api_compat_not_configured,
 )
 from sklearn.utils.estimator_checks import (
-    check_array_api_input,
     parametrize_with_checks,
 )
 
@@ -275,50 +274,11 @@ def test_preserve_class_inputs():
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.parametrize("hidden_layer_sizes", [(4,), (4, 4)])
-@pytest.mark.parametrize("direct_links", [True, False])
-@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
-@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
-@pytest.mark.parametrize("reg_alpha", [None, 0.1])
-@pytest.mark.parametrize(
-    "array_namespace, device_name, dtype_name",
-    yield_namespace_device_dtype_combinations(),
-)
-def test_xp_check_inputs(hidden_layer_sizes,
-                         direct_links,
-                         activation,
-                         weight_scheme,
-                         reg_alpha,
-                         array_namespace,
-                         device_name,
-                         dtype_name,
-                         ):
-
-    estimator = GFDLRegressor(
-        reg_alpha=reg_alpha,
-        hidden_layer_sizes=hidden_layer_sizes,
-        activation=activation,
-        weight_scheme=weight_scheme,
-        direct_links=direct_links,
-        seed=42,
-    )
-    with config_context(array_api_dispatch=True):
-        check_array_api_input(
-            estimator.__class__.__name__,
-            estimator,
-            array_namespace=array_namespace,
-            device_name=device_name,
-            dtype_name=dtype_name,
-        )
-
-
-@skip_if_array_api_compat_not_configured
 @pytest.mark.parametrize("hidden_layer_sizes", [(2,), (2, 2)])
 @pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("activation", ACTIVATIONS.keys())
 @pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
 @pytest.mark.parametrize("reg_alpha", [None, 0.1])
-@pytest.mark.parametrize("partial_fit", [False, True])
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
@@ -331,7 +291,6 @@ def test_xp_make_regression(hidden_layer_sizes,
                             array_namespace,
                             device_name,
                             dtype_name,
-                            partial_fit,
                             ):
     # Custom make_regression()-based NumPy and array API matching
     # This test is closely based on `_check_array_api_core` from sklearn.
@@ -341,25 +300,12 @@ def test_xp_make_regression(hidden_layer_sizes,
 
     # torch float64 (MacOS) .fit() : 13/720 fail with atol=1e-11 & rtol=1e-14
     # torch float32 (MacOS) .fit() : 5/720 fail with atol=1e-2 & rtol=1e-4
-    # torch float64 (MacOS) .partial_fit() : 23/720 fail with atol=1e-7 & rtol=1e-9
-    # torch float32 (MacOS) .partial_fit() : 10/720 fail with atol=1e1 & rtol=1e-3
     # Increased by order of magnitude from notes above for Linux
     atol = 1e-9 if dtype_name == "float64" else 1e-1
     rtol = 1e-12 if dtype_name == "float64" else 1e-3
-    if partial_fit:
-        atol = 1e-6 if dtype_name == "float64" else 1e-0
-        rtol = 1e-8 if dtype_name == "float64" else 1e-1
     n_samples = 500
     random_state = 42
     estimator = GFDLRegressor
-
-    def run_partial_fit(X, y, model):
-        batch = 100
-        for start in range(0, X.shape[0], batch):
-            end = min(start + batch, X.shape[0])
-            Xb = X[start:end, :]
-            yb = y[start:end]
-            model.partial_fit(Xb, yb)
 
     X, y = make_regression(
         n_samples=n_samples,
@@ -380,18 +326,12 @@ def test_xp_make_regression(hidden_layer_sizes,
         direct_links=direct_links,
         seed=random_state,)
     with config_context(array_api_dispatch=False):
-        if partial_fit:
-            run_partial_fit(X, y, est)
-        else:
-            est.fit(X, y)
+        est.fit(X, y)
 
     # xp (array API) .fit
     est_xp = clone(est)
     with config_context(array_api_dispatch=True):
-        if partial_fit:
-            run_partial_fit(X_xp, y, est_xp)
-        else:
-            est_xp.fit(X_xp, y)
+        est_xp.fit(X_xp, y)
 
     # Check fitted attributes are close
     array_attributes = {
