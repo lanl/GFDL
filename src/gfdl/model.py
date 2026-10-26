@@ -700,54 +700,32 @@ class EnsembleGFDL(BaseEstimator):
         rng = self.get_generator(self.seed)
 
         self.W_.append(
-            xp.astype(
-            move_to(
+            xp.asarray(
             self._weight_mode(
                 self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
                 ),
-            xp=xp,
-            device=device,
-            ),
-            X.dtype,
-            copy=False,
+            dtype=X.dtype, device=device
             )
-            )
+        )
         self.b_.append(
-            xp.astype(
-            move_to(
+            xp.asarray(
             self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-            .reshape(-1),
-            xp=xp,
-            device=device,
-            ),
-            X.dtype,
-            copy=False,
+            .reshape(-1), dtype=X.dtype, device=device
             )
             )
-
         for i, layer in enumerate(hidden_layer_sizes[1:]):
             # (n_hidden, n_features)
             self.W_.append(
-                xp.astype(
-                move_to(
+                xp.asarray(
                 self._weight_mode(hidden_layer_sizes[i] + self._N, layer, rng=rng),
-                xp=xp,
-                device=device,
-                ),
-                X.dtype,
-                copy=False,
+                dtype=X.dtype, device=device
                 )
                 )
             # (n_hidden,)
             self.b_.append(
-                xp.astype(
-                move_to(
+                xp.asarray(
                 self._weight_mode(1, layer, rng=rng,).reshape(-1),
-                xp=xp,
-                device=device,
-                ),
-                X.dtype,
-                copy=False,
+                dtype=X.dtype, device=device
                 )
                 )
 
@@ -805,54 +783,32 @@ class EnsembleGFDL(BaseEstimator):
             rng = self.get_generator(self.seed)
 
             self.W_.append(
-                xp.astype(
-                move_to(
+                xp.asarray(
                 self._weight_mode(
                     self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
                     ),
-                xp=xp,
-                device=device,
-                ),
-                X.dtype,
-                copy=False,
+                dtype=X.dtype, device=device
                 )
-                )
+            )
             self.b_.append(
-                xp.astype(
-                move_to(
+                xp.asarray(
                 self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-                .reshape(-1),
-                xp=xp,
-                device=device,
-                ),
-                X.dtype,
-                copy=False,
+                .reshape(-1), dtype=X.dtype, device=device
                 )
                 )
-
             for i, layer in enumerate(hidden_layer_sizes[1:]):
                 # (n_hidden, n_features)
                 self.W_.append(
-                    xp.astype(
-                    move_to(
+                    xp.asarray(
                     self._weight_mode(hidden_layer_sizes[i] + self._N, layer, rng=rng),
-                    xp=xp,
-                    device=device,
-                    ),
-                    X.dtype,
-                    copy=False,
+                    dtype=X.dtype, device=device
                     )
                     )
                 # (n_hidden,)
                 self.b_.append(
-                    xp.astype(
-                    move_to(
+                    xp.asarray(
                     self._weight_mode(1, layer, rng=rng,).reshape(-1),
-                    xp=xp,
-                    device=device,
-                    ),
-                    X.dtype,
-                    copy=False,
+                    dtype=X.dtype, device=device
                     )
                     )
 
@@ -909,15 +865,11 @@ class EnsembleGFDL(BaseEstimator):
                 #   alpha=self.reg_alpha, fit_intercept=False, solver='cholesky'
                 #   )
                 # ridge.fit(D_all[:current_batch], Y_all[:current_batch])
-                reg_mat = xp.astype(
-                    move_to(
-                        xp.eye(self.As[i].shape[0]) * self.reg_alpha,
-                        xp=xp,
-                        device=device,
-                    ),
-                    X.dtype,
-                    copy=False,
-                )
+                reg_mat = (
+                        xp.eye(self.As[i].shape[0],
+                               dtype=self.As[i].dtype, device=device)
+                        * self.reg_alpha
+                    )
                 coef_ = xp.linalg.solve(self.As[i] + reg_mat, self.Bs[i])
 
             self.coeffs_.append(coef_)

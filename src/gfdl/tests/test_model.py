@@ -940,15 +940,19 @@ def test_xp_classifier_fit(estimator,
 
 
 @skip_if_array_api_compat_not_configured
+@pytest.mark.parametrize("estimator", [GFDLClassifier, EnsembleGFDLClassifier])
 @pytest.mark.parametrize("reg_alpha", [None, 2])
 @pytest.mark.parametrize("hidden_layer_sizes", [(10,), (10, 10)])
+@pytest.mark.parametrize("direct_links", [True, False])
 @pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
 )
-def test_xp_classifier_partial_fit(hidden_layer_sizes,
+def test_xp_classifier_partial_fit(estimator,
+                                    hidden_layer_sizes,
                                     reg_alpha,
+                                    direct_links,
                                     n_classes,
                                     array_namespace,
                                     device_name,
@@ -969,9 +973,12 @@ def test_xp_classifier_partial_fit(hidden_layer_sizes,
     params = {
         "reg_alpha": reg_alpha,
         "hidden_layer_sizes": hidden_layer_sizes,
-        "seed": 0
+        "seed": 0,
     }
-    estimator = GFDLClassifier
+    if estimator is GFDLClassifier:
+        params["direct_links"] = direct_links
+    else:
+        params["voting"] = "soft"
 
     predictions = []
     for X, dispatch in [(X_np, False), (X_xp, True)]:
