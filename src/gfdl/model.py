@@ -58,8 +58,7 @@ class GFDL(BaseEstimator):
         xp, _, device = get_namespace_and_device(X)
         Y = xp.astype(
             move_to(Y, xp=xp, device=device),
-            X.dtype,
-            copy=False,
+            X.dtype, copy=False
         )
 
         # Assumption : X, Y have been pre-processed.
@@ -87,16 +86,13 @@ class GFDL(BaseEstimator):
             self._weight_mode(
                 self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
                 ),
-            dtype=X.dtype,
-            device=device,
+            dtype=X.dtype, device=device
             )
         )
         self.b_.append(
             xp.asarray(
             self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-            .reshape(-1),
-            dtype=X.dtype,
-            device=device,
+            .reshape(-1), dtype=X.dtype, device=device
             )
             )
         for i, layer in enumerate(hidden_layer_sizes[1:]):
@@ -104,16 +100,14 @@ class GFDL(BaseEstimator):
             self.W_.append(
                 xp.asarray(
                 self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,),
-                dtype=X.dtype,
-                device=device,
+                dtype=X.dtype, device=device
                 )
                 )
             # (n_hidden,)
             self.b_.append(
                 xp.asarray(
                 self._weight_mode(1, layer, rng=rng,).reshape(-1),
-                dtype=X.dtype,
-                device=device,
+                dtype=X.dtype, device=device
                 )
                 )
 
@@ -198,54 +192,28 @@ class GFDL(BaseEstimator):
             rng = self.get_generator(self.seed)
 
             self.W_.append(
-                xp.astype(
-                move_to(
+                xp.asarray(
                 self._weight_mode(
                     self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
-                    ),
-                xp=xp,
-                device=device,
-                ),
-                X.dtype,
-                copy=False,
-                )
+                    ), dtype=X.dtype, device=device)
                 )
             self.b_.append(
-                xp.astype(
-                move_to(
+                xp.asarray(
                 self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-                .reshape(-1),
-                xp=xp,
-                device=device,
-                ),
-                X.dtype,
-                copy=False,
-                )
+                .reshape(-1), dtype=X.dtype, device=device)
                 )
             for i, layer in enumerate(hidden_layer_sizes[1:]):
                 # (n_hidden, n_features)
                 self.W_.append(
-                    xp.astype(
-                    move_to(
+                    xp.asarray(
                     self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,),
-                    xp=xp,
-                    device=device,
-                    ),
-                    X.dtype,
-                    copy=False,
-                    )
+                    dtype=X.dtype, device=device)
                     )
                 # (n_hidden,)
                 self.b_.append(
-                    xp.astype(
-                    move_to(
+                    xp.asarray(
                     self._weight_mode(1, layer, rng=rng,).reshape(-1),
-                    xp=xp,
-                    device=device,
-                    ),
-                    X.dtype,
-                    copy=False,
-                    )
+                    dtype=X.dtype, device=device)
                     )
 
         # design matrix shape: (n_samples, sum_hidden+n_features)
@@ -267,8 +235,7 @@ class GFDL(BaseEstimator):
             self.A = xp.zeros((D.shape[1], D.shape[1]),
                               dtype=X.dtype, device=device)
             self.B = xp.zeros((D.shape[1], y.shape[1]),
-                              dtype=X.dtype, device=device
-                              )
+                              dtype=X.dtype, device=device)
 
         self.A += D.T @ D
         self.B += D.T @ y
@@ -303,19 +270,12 @@ class GFDL(BaseEstimator):
             #   alpha=self.reg_alpha, fit_intercept=False, solver='cholesky'
             #   )
             # ridge.fit(D_all[:current_batch], Y_all[:current_batch])
-            reg_mat = xp.astype(
-                move_to(
-                    xp.eye(self.A.shape[0]) * self.reg_alpha,
-                    xp=xp,
-                    device=device,
-                ),
-                X.dtype,
-                copy=False,
+            reg_mat = (
+                xp.eye(self.A.shape[0], dtype=self.A.dtype, device=device)
+                * self.reg_alpha
             )
 
-            coef = xp.linalg.solve(
-                self.A + reg_mat, self.B
-            )
+            coef = xp.linalg.solve(self.A + reg_mat, self.B)
             if coef.ndim == 2 and coef.shape[1] == 1:
                 coef = xp.squeeze(coef, axis=-1)
             self.coeff_ = coef
