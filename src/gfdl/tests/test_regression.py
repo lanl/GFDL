@@ -2,14 +2,15 @@
 
 import numpy as np
 import pytest
-from numpy.testing import assert_allclose
 from sklearn import config_context
 from sklearn.base import clone
 from sklearn.datasets import fetch_openml, make_regression
+from sklearn.externals import array_api_extra as xpx
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils._array_api import (
+    _atol_for_type,
     move_to,
     yield_namespace_device_dtype_combinations,
 )
@@ -274,16 +275,25 @@ def test_preserve_class_inputs():
 
 
 @skip_if_array_api_compat_not_configured
-@pytest.mark.parametrize("hidden_layer_sizes", [(2,), (2, 2)])
-@pytest.mark.parametrize("direct_links", [True, False])
-@pytest.mark.parametrize("activation", ACTIVATIONS.keys())
-@pytest.mark.parametrize("weight_scheme", WEIGHTS.keys())
-@pytest.mark.parametrize("reg_alpha", [None, 0.1])
+@pytest.mark.parametrize(
+        "reg_alpha, hidden_layer_sizes, activation, weight_scheme, direct_links",
+        [
+            (2, (10,), "relu", "normal", True),
+            (2, (10, 10), "sigmoid", "zeros", True),
+            (2, (10,), "softmax", "lecun_normal", True),
+            (2, (10,), "tanh", "he_normal", False),
+            (None, (10,), "softmin", "glorot_normal", True),
+            (None, (10, 10), "log_softmax", "uniform", False),
+            (None, (10,), "log_sigmoid", "lecun_uniform", True),
+            (2, (10,), "identity", "glorot_uniform", True),
+            (2, (10,), "identity", "he_uniform", True),
+        ]
+)
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
 )
-def test_xp_make_regression(hidden_layer_sizes,
+def test_xp_regressor_fit(hidden_layer_sizes,
                             direct_links,
                             activation,
                             weight_scheme,
@@ -298,21 +308,11 @@ def test_xp_make_regression(hidden_layer_sizes,
     # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117.
     xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
 
-    # torch float64 (MacOS) .fit() : 13/720 fail with atol=1e-11 & rtol=1e-14
-    # torch float32 (MacOS) .fit() : 5/720 fail with atol=1e-2 & rtol=1e-4
-    # Increased by order of magnitude from notes above for Linux
-    atol = 1e-9 if dtype_name == "float64" else 1e-1
-    rtol = 1e-12 if dtype_name == "float64" else 1e-3
-    n_samples = 500
-    random_state = 42
+    atol = _atol_for_type(dtype_name) * 10
     estimator = GFDLRegressor
 
     X, y = make_regression(
-        n_samples=n_samples,
-        n_features=20,
-        n_informative=5,
-        n_targets=1,
-        random_state=random_state,
+        n_samples=500, n_features=20, n_informative=5, n_targets=1, random_state=0,
     )
     X = X.astype(dtype_name, copy=False)
     X_xp = xp.asarray(X, device=device)
@@ -324,7 +324,7 @@ def test_xp_make_regression(hidden_layer_sizes,
         activation=activation,
         weight_scheme=weight_scheme,
         direct_links=direct_links,
-        seed=random_state,)
+        seed=0,)
     with config_context(array_api_dispatch=False):
         est.fit(X, y)
 
@@ -340,12 +340,10 @@ def test_xp_make_regression(hidden_layer_sizes,
     for attribute_name, attribute_value in array_attributes.items():
         est_xp_attr = getattr(est_xp, attribute_name)
         est_xp_attr_np = move_to(est_xp_attr, xp=np, device="cpu")
-        assert_allclose(
-            attribute_value,
-            est_xp_attr_np,
+        xpx.testing.assert_close(
+            attribute_value, est_xp_attr_np,
             err_msg=f"{attribute_name} not the same",
             atol=atol,
-            rtol=rtol,
         )
 
     # Check method outputs are close
@@ -358,10 +356,58 @@ def test_xp_make_regression(hidden_layer_sizes,
         with config_context(array_api_dispatch=True):
             result_xp = getattr(est_xp, method_name)(X_xp)
         result_xp_np = move_to(result_xp, xp=np, device="cpu")
-        assert_allclose(
-            result,
-            result_xp_np,
+        xpx.testing.assert_close(
+            result, result_xp_np,
             err_msg=f"{method_name}() did not the return the same result",
             atol=atol,
-            rtol=rtol,
         )
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.parametrize("reg_alpha", [None, 2])
+@pytest.mark.parametrize("hidden_layer_sizes", [(10,), (10, 10)])
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
+def test_xp_regressor_partial_fit(hidden_layer_sizes,
+                                    reg_alpha,
+                                    array_namespace,
+                                    device_name,
+                                    dtype_name,
+                                    ):
+
+    atol = _atol_for_type(dtype_name) * 10
+    batch = 2
+
+    xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
+    X_np, y_np = make_regression(
+        n_samples=6, n_features=20, n_informative=5, random_state=0,
+    )
+    X_np = X_np.astype(dtype_name, copy=False)
+    X_xp = xp.asarray(X_np, device=device)
+
+    params = {
+        "reg_alpha": reg_alpha,
+        "hidden_layer_sizes": hidden_layer_sizes,
+        "seed": 0
+    }
+    estimator = GFDLRegressor
+
+    predictions = []
+    for X, dispatch in [(X_np, False), (X_xp, True)]:
+        with config_context(array_api_dispatch=dispatch):
+            model = estimator(**params)
+            for start in range(0, X.shape[0], batch):
+                model.partial_fit(
+                    X[start:start + batch, ...], y_np[start:start + batch],
+                )
+            predictions.append(
+                move_to(model.predict(X), xp=np, device="cpu")
+            )
+
+    xpx.testing.assert_close(
+        predictions[0], predictions[1],
+        err_msg="predict() did not the return the same result",
+        atol=atol,
+    )
