@@ -855,6 +855,7 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
             (2, (10,), "identity", "he_uniform", True),
         ]
 )
+@pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
@@ -864,6 +865,7 @@ def test_xp_classifier_fit(hidden_layer_sizes,
                             activation,
                             weight_scheme,
                             reg_alpha,
+                            n_classes,
                             array_namespace,
                             device_name,
                             dtype_name,
@@ -878,7 +880,7 @@ def test_xp_classifier_fit(hidden_layer_sizes,
     estimator = GFDLClassifier
 
     X, y = make_classification(n_samples=500, n_features=20,
-        n_informative=5, n_classes=2, random_state=0,
+        n_informative=5, n_classes=n_classes, random_state=0,
     )
     X = X.astype(dtype_name, copy=False)
     X_xp = xp.asarray(X, device=device)
@@ -933,12 +935,14 @@ def test_xp_classifier_fit(hidden_layer_sizes,
 @skip_if_array_api_compat_not_configured
 @pytest.mark.parametrize("reg_alpha", [None, 2])
 @pytest.mark.parametrize("hidden_layer_sizes", [(10,), (10, 10)])
+@pytest.mark.parametrize("n_classes", [2, 5])
 @pytest.mark.parametrize(
     "array_namespace, device_name, dtype_name",
     yield_namespace_device_dtype_combinations(),
 )
 def test_xp_classifier_partial_fit(hidden_layer_sizes,
                                     reg_alpha,
+                                    n_classes,
                                     array_namespace,
                                     device_name,
                                     dtype_name,
@@ -949,7 +953,8 @@ def test_xp_classifier_partial_fit(hidden_layer_sizes,
 
     xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
     X_np, y_np = make_classification(
-        n_samples=6, n_features=20, n_informative=5, random_state=0, n_classes=2
+        n_samples=6, n_features=20, n_informative=5, random_state=0,
+        n_classes=n_classes
     )
     X_np = X_np.astype(dtype_name, copy=False)
     X_xp = xp.asarray(X_np, device=device)
