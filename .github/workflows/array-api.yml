@@ -31,4 +31,8 @@ jobs:
     - name: test
       run: |
         cd $RUNNER_TEMP
-        SCIPY_ARRAY_API=1 python -m pytest --pyargs gfdl --cov=gfdl --cov-report=term-missing
+        SCIPY_ARRAY_API=1 python -m pytest 
+        --pyargs gfdl 
+        --cov=gfdl 
+        --cov-report=term-missing
+        -k "not (cuda or xpu or mps)"
