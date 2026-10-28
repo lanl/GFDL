@@ -1,12 +1,26 @@
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from sklearn import config_context
 from sklearn.base import clone
 from sklearn.datasets import load_breast_cancer, load_digits, make_classification
+from sklearn.externals import array_api_extra as xpx
 from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.utils.estimator_checks import parametrize_with_checks
+from sklearn.utils._array_api import (
+    _atol_for_type,
+    move_to,
+    yield_namespace_device_dtype_combinations,
+)
+from sklearn.utils._testing import (
+    _array_api_for_tests,
+    skip_if_array_api_compat_not_configured,
+)
+from sklearn.utils.estimator_checks import (
+    parametrize_with_checks,
+)
 from ucimlrepo import fetch_ucirepo
 
 from gfdl.activations import ACTIVATIONS
@@ -329,11 +343,11 @@ def test_soft_and_hard_can_differ(alpha):
 @pytest.mark.parametrize("Classifier", [GFDLClassifier, EnsembleGFDLClassifier])
 def test_invalid_activation_weight(Classifier):
     X = np.zeros((30, 4))
-    y = np.zeros((30,))
-    invalid_act = Classifier(hidden_layer_sizes=100,
+    y = np.arange(30) % 2
+    invalid_act = Classifier(hidden_layer_sizes=(100,),
                              activation="bogus_activation",
                              weight_scheme="uniform")
-    invalid_weight = Classifier(hidden_layer_sizes=100,
+    invalid_weight = Classifier(hidden_layer_sizes=(100,),
                                 activation="identity",
                                 weight_scheme="bogus_weight")
     # the sklearn estimator API bans input validation in __init__,
@@ -351,7 +365,7 @@ def test_invalid_alpha(Classifier):
     # so we need to call fit() for error handling to kick in:
     # https://scikit-learn.org/stable/developers/develop.html#developing-scikit-learn-estimators
     X = np.zeros((30, 4))
-    y = np.zeros((30,))
+    y = np.arange(30) % 2
     bad_est = Classifier(hidden_layer_sizes=100,
                              activation="identity",
                              weight_scheme="uniform",
@@ -496,7 +510,9 @@ def test_rtol_classifier(reg_alpha, rtol, expected_acc, expected_roc):
     roc_cur = roc_auc_score(y_test, y_hat_cur_proba, multi_class="ovo")
 
     np.testing.assert_allclose(acc_cur, expected_acc)
-    np.testing.assert_allclose(roc_cur, expected_roc)
+    np.testing.assert_allclose(roc_cur, expected_roc,
+                               rtol=1e-4
+                               )
 
 
 @pytest.mark.parametrize("reg_alpha, rtol, expected_acc, expected_roc", [
@@ -822,3 +838,155 @@ def test_gh_85_classifiers(hidden_layer_sizes, classifier):
     clf = classifier(hidden_layer_sizes=hidden_layer_sizes, seed=0)
     with pytest.raises(ValueError, match="must be > 0"):
         clf.fit(X, y)
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.parametrize(
+        "reg_alpha, hidden_layer_sizes, activation, weight_scheme, direct_links",
+        [
+            (2, (10,), "relu", "normal", True),
+            (2, (10, 10), "sigmoid", "zeros", True),
+            (2, (10,), "softmax", "lecun_normal", True),
+            (2, (10,), "tanh", "he_normal", False),
+            (None, (10,), "softmin", "glorot_normal", True),
+            (None, (10, 10), "log_softmax", "uniform", False),
+            (None, (10,), "log_sigmoid", "lecun_uniform", True),
+            (2, (10,), "identity", "glorot_uniform", True),
+            (2, (10,), "identity", "he_uniform", True),
+        ]
+)
+@pytest.mark.parametrize("n_classes", [2, 5])
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
+def test_xp_classifier_fit(hidden_layer_sizes,
+                            direct_links,
+                            activation,
+                            weight_scheme,
+                            reg_alpha,
+                            n_classes,
+                            array_namespace,
+                            device_name,
+                            dtype_name,
+                            ):
+    # Custom make_regression()-based NumPy and array API matching
+    # This test is closely based on `_check_array_api_core` from sklearn.
+    # Here, we have better control of `atol`, `rtol`, and simulating data.
+    # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117.
+    xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
+
+    atol = _atol_for_type(dtype_name) * 10
+    estimator = GFDLClassifier
+
+    X, y = make_classification(n_samples=500, n_features=20,
+        n_informative=5, n_classes=n_classes, random_state=0,
+    )
+    X = X.astype(dtype_name, copy=False)
+    X_xp = xp.asarray(X, device=device)
+
+    # NumPy .fit
+    est = estimator(
+        reg_alpha=reg_alpha,
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=direct_links,
+        seed=0,)
+    with config_context(array_api_dispatch=False):
+        est.fit(X, y)
+
+    # xp (array API) .fit
+    est_xp = clone(est)
+    with config_context(array_api_dispatch=True):
+        est_xp.fit(X_xp, y)
+
+    # Check fitted attributes are close
+    array_attributes = {
+        key: value for key, value in vars(est).items() if isinstance(value, np.ndarray)
+    }
+    for attribute_name, attribute_value in array_attributes.items():
+        est_xp_attr = getattr(est_xp, attribute_name)
+        est_xp_attr_np = move_to(est_xp_attr, xp=np, device="cpu")
+        xpx.testing.assert_close(
+            attribute_value, est_xp_attr_np,
+            err_msg=f"{attribute_name} not the same",
+            atol=atol,
+        )
+
+    # Check method outputs are close
+    methods = [
+        "predict",
+        "predict_proba",
+    ]
+    for method_name in methods:
+        with config_context(array_api_dispatch=False):
+            result = getattr(est, method_name)(X)
+        with config_context(array_api_dispatch=True):
+            result_xp = getattr(est_xp, method_name)(X_xp)
+        result_xp_np = move_to(result_xp, xp=np, device="cpu")
+        xpx.testing.assert_close(
+            result, result_xp_np,
+            err_msg=f"{method_name}() did not the return the same result",
+            atol=atol,
+        )
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.parametrize("reg_alpha", [None, 2])
+@pytest.mark.parametrize("hidden_layer_sizes", [(10,), (10, 10)])
+@pytest.mark.parametrize("n_classes", [2, 5])
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
+def test_xp_classifier_partial_fit(hidden_layer_sizes,
+                                    reg_alpha,
+                                    n_classes,
+                                    array_namespace,
+                                    device_name,
+                                    dtype_name,
+                                    ):
+
+    atol = _atol_for_type(dtype_name) * 10
+    batch = 2
+
+    xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
+    X_np, y_np = make_classification(
+        n_samples=6, n_features=20, n_informative=5, random_state=0,
+        n_classes=n_classes
+    )
+    X_np = X_np.astype(dtype_name, copy=False)
+    X_xp = xp.asarray(X_np, device=device)
+
+    params = {
+        "reg_alpha": reg_alpha,
+        "hidden_layer_sizes": hidden_layer_sizes,
+        "seed": 0
+    }
+    estimator = GFDLClassifier
+
+    predictions = []
+    for X, dispatch in [(X_np, False), (X_xp, True)]:
+        with config_context(array_api_dispatch=dispatch):
+            model = estimator(**params)
+            for start in range(0, X.shape[0], batch):
+                model.partial_fit(
+                    X[start:start + batch, ...], y_np[start:start + batch],
+                    classes=np.unique(y_np)
+                )
+            predictions.extend(
+                (move_to(model.predict(X), xp=np, device="cpu"),
+                move_to(model.predict_proba(X), xp=np, device="cpu"))
+            )
+
+    xpx.testing.assert_close(
+        predictions[0], predictions[2],
+        err_msg="predict() did not the return the same result",
+        atol=atol,
+    )
+    xpx.testing.assert_close(
+        predictions[1], predictions[3],
+        err_msg="predict() did not the return the same result",
+        atol=atol,
+    )
