@@ -560,22 +560,14 @@ def test_partial_fit(
     alpha,
     attr
 ):
-    # Test equivalence between partial_fit() and fit() as long
-    # as D.T @ D is well-conditioned. For Moore-Penrose (alpha=None)
-    # fit() applies the pinv rtol cutoff to the singular values of D, while
-    # partial_fit() applies the same rtol to D.T @ D, whose singular values
-    # are the squares of those of D. The two therefore discard different
-    # small-singular-value directions, and rounding near the cutoff
-    # (e.g., BLAS kernel differences, gh-117) can flip which directions
-    # survive. Coefficients along those directions are numerically
-    # sensitive but barely affect the output, so compare predictions on
-    # training and held-out data instead.
-    #
-    # Ridge (alpha > 0) is unaffected: both fit() and partial_fit() solve
-    # (D.T @ D + alpha * I) @ beta = D.T @ y, where alpha shifts every
-    # eigenvalue up to at least alpha. The system is then well-conditioned
-    # with a unique solution and no rtol cutoff is involved, so compare the
-    # coefficients directly.
+    # Test equivalence between partial_fit() and fit().
+    # Compare predictions for Moore-Penrose (alpha=None) instead of
+    # checking coeffs. The pinv solver uses rtol to cut off singular
+    # values of D for fit(), and of D.T @ D for partial_fit(). This can
+    # lead to removing different near-null directions and hence different
+    # coefficients. This barely impacts predictions, as those near-null
+    # directions contribute almost nothing to D @ beta. Ridge is unaffected
+    # by this issue, so we can continue to compare coefficients.
 
     # partial_fit is equivalent to accumulating normal equations
     X, y = make_classification(
