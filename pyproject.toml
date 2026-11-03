@@ -49,6 +49,7 @@ test = [
     "pytest==9.1.1",
     "pytest-cov",
     "pytest-xdist",
+    "pandas<3.1.0",
 ]
 lint = [
     "ruff==0.16.8",
