@@ -560,17 +560,26 @@ def test_partial_fit(
     alpha,
     attr
 ):
-    # Test coefficient equivalence between partial_fit() and fit() as long
-    # as D.T @ D is well-conditioned
+    # Test equivalence between partial_fit() and fit().
+    # Compare predictions for Moore-Penrose (alpha=None) instead of
+    # checking coeffs. The pinv solver uses rtol to cut off singular
+    # values of D for fit(), and of D.T @ D for partial_fit(). This can
+    # lead to removing different near-null directions and hence different
+    # coefficients. This barely impacts predictions, as those near-null
+    # directions contribute almost nothing to D @ beta. Ridge is unaffected
+    # by this issue, so we can continue to compare coefficients.
 
     # partial_fit is equivalent to accumulating normal equations
     X, y = make_classification(
-        n_samples=400,
+        n_samples=500,
         n_features=20,
         n_informative=10,
         n_redundant=5,
         n_classes=n_classes,
         random_state=0,
+    )
+    X_train, X_test, y_train, _ = train_test_split(
+        X, y, test_size=0.2, stratify=y, random_state=0
     )
 
     kwargs = {
@@ -586,22 +595,29 @@ def test_partial_fit(
     ff_model = Classifier(**kwargs)
     pf_model = clone(ff_model)
 
-    ff_model.fit(X, y)
+    ff_model.fit(X_train, y_train)
 
     classes = np.unique(y)
     batch = 25
-    for start in range(0, len(X), batch):
-        end = min(start + batch, len(X))
-        Xb = X[start:end]
-        yb = y[start:end]
+    for start in range(0, len(X_train), batch):
+        end = min(start + batch, len(X_train))
+        Xb = X_train[start:end]
+        yb = y_train[start:end]
         if start == 0:
             pf_model.partial_fit(Xb, yb, classes=classes)
         else:
             pf_model.partial_fit(Xb, yb)
 
-    assert_allclose(
-        getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=1e-3
-        )
+    if alpha is None:
+        for X_eval in (X_train, X_test):
+            assert_allclose(
+                pf_model.predict_proba(X_eval), ff_model.predict_proba(X_eval),
+                rtol=1e-5, atol=1e-3
+                )
+    else:
+        assert_allclose(
+            getattr(pf_model, attr), getattr(ff_model, attr), rtol=1e-5, atol=1e-3
+            )
 
 
 @pytest.mark.parametrize(
