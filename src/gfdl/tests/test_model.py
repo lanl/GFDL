@@ -436,7 +436,9 @@ def test_classification_against_grafo(hidden_layer_sizes, n_classes, activation,
 
 
 @parametrize_with_checks([GFDLClassifier(), EnsembleGFDLClassifier()])
-def test_sklearn_api_conformance(estimator, check):
+def test_sklearn_api_conformance(estimator, check, request):
+    if "check_array_api" in request.node.name:
+        pytest.skip("Array API checks run separately")
     check(estimator)
 
 

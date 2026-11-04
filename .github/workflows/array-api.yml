@@ -1,0 +1,38 @@
+name: Array API CI
+
+on:
+  push:
+    branches:
+      - maintenance/**
+  pull_request:
+    branches:
+      - main
+      - maintenance/**
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.14"]
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install -v .
+        python -m pip install -v --group test
+        python -m pip install torch array-api-strict array-api-compat
+    - name: test
+      run: |
+        cd $RUNNER_TEMP
+        SCIPY_ARRAY_API=1 python -m pytest 
+        --pyargs gfdl 
+        --cov=gfdl 
+        --cov-report=term-missing
+        -k "not (cuda or xpu or mps)"

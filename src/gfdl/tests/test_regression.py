@@ -1,11 +1,26 @@
+
+
 import numpy as np
 import pytest
+from sklearn import config_context
 from sklearn.base import clone
 from sklearn.datasets import fetch_openml, make_regression
+from sklearn.externals import array_api_extra as xpx
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.utils.estimator_checks import parametrize_with_checks
+from sklearn.utils._array_api import (
+    _atol_for_type,
+    move_to,
+    yield_namespace_device_dtype_combinations,
+)
+from sklearn.utils._testing import (
+    _array_api_for_tests,
+    skip_if_array_api_compat_not_configured,
+)
+from sklearn.utils.estimator_checks import (
+    parametrize_with_checks,
+)
 
 from gfdl.activations import ACTIVATIONS
 from gfdl.model import GFDLRegressor
@@ -257,3 +272,142 @@ def test_preserve_class_inputs():
     for k, v in actual.items():
         assert v == expected[k]
         assert isinstance(v, type(expected[k]))
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.parametrize(
+        "reg_alpha, hidden_layer_sizes, activation, weight_scheme, direct_links",
+        [
+            (2, (10,), "relu", "normal", True),
+            (2, (10, 10), "sigmoid", "zeros", True),
+            (2, (10,), "softmax", "lecun_normal", True),
+            (2, (10,), "tanh", "he_normal", False),
+            (None, (10,), "softmin", "glorot_normal", True),
+            (None, (10, 10), "log_softmax", "uniform", False),
+            (None, (10,), "log_sigmoid", "lecun_uniform", True),
+            (2, (10,), "identity", "glorot_uniform", True),
+            (2, (10,), "identity", "he_uniform", True),
+        ]
+)
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
+def test_xp_regressor_fit(hidden_layer_sizes,
+                            direct_links,
+                            activation,
+                            weight_scheme,
+                            reg_alpha,
+                            array_namespace,
+                            device_name,
+                            dtype_name,
+                            ):
+    # Custom make_regression()-based NumPy and array API matching
+    # This test is closely based on `_check_array_api_core` from sklearn.
+    # Here, we have better control of `atol`, `rtol`, and simulating data.
+    # https://github.com/scikit-learn/scikit-learn/pull/33215#issuecomment-5953082117.
+    xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
+
+    atol = _atol_for_type(dtype_name) * 10
+    estimator = GFDLRegressor
+
+    X, y = make_regression(
+        n_samples=500, n_features=20, n_informative=5, n_targets=1, random_state=0,
+    )
+    X = X.astype(dtype_name, copy=False)
+    X_xp = xp.asarray(X, device=device)
+
+    # NumPy .fit
+    est = estimator(
+        reg_alpha=reg_alpha,
+        hidden_layer_sizes=hidden_layer_sizes,
+        activation=activation,
+        weight_scheme=weight_scheme,
+        direct_links=direct_links,
+        seed=0,)
+    with config_context(array_api_dispatch=False):
+        est.fit(X, y)
+
+    # xp (array API) .fit
+    est_xp = clone(est)
+    with config_context(array_api_dispatch=True):
+        est_xp.fit(X_xp, y)
+
+    # Check fitted attributes are close
+    array_attributes = {
+        key: value for key, value in vars(est).items() if isinstance(value, np.ndarray)
+    }
+    for attribute_name, attribute_value in array_attributes.items():
+        est_xp_attr = getattr(est_xp, attribute_name)
+        est_xp_attr_np = move_to(est_xp_attr, xp=np, device="cpu")
+        xpx.testing.assert_close(
+            attribute_value, est_xp_attr_np,
+            err_msg=f"{attribute_name} not the same",
+            atol=atol,
+        )
+
+    # Check method outputs are close
+    methods = [
+        "predict",
+    ]
+    for method_name in methods:
+        with config_context(array_api_dispatch=False):
+            result = getattr(est, method_name)(X)
+        with config_context(array_api_dispatch=True):
+            result_xp = getattr(est_xp, method_name)(X_xp)
+        result_xp_np = move_to(result_xp, xp=np, device="cpu")
+        xpx.testing.assert_close(
+            result, result_xp_np,
+            err_msg=f"{method_name}() did not the return the same result",
+            atol=atol,
+        )
+
+
+@skip_if_array_api_compat_not_configured
+@pytest.mark.parametrize("reg_alpha", [None, 2])
+@pytest.mark.parametrize("hidden_layer_sizes", [(10,), (10, 10)])
+@pytest.mark.parametrize(
+    "array_namespace, device_name, dtype_name",
+    yield_namespace_device_dtype_combinations(),
+)
+def test_xp_regressor_partial_fit(hidden_layer_sizes,
+                                    reg_alpha,
+                                    array_namespace,
+                                    device_name,
+                                    dtype_name,
+                                    ):
+
+    atol = _atol_for_type(dtype_name) * 10
+    batch = 2
+
+    xp, device = _array_api_for_tests(array_namespace, device_name, dtype_name)
+    X_np, y_np = make_regression(
+        n_samples=6, n_features=20, n_informative=5, random_state=0,
+    )
+    X_np = X_np.astype(dtype_name, copy=False)
+    X_xp = xp.asarray(X_np, device=device)
+
+    params = {
+        "reg_alpha": reg_alpha,
+        "hidden_layer_sizes": hidden_layer_sizes,
+        "seed": 0
+    }
+    estimator = GFDLRegressor
+
+    predictions = []
+    for X, dispatch in [(X_np, False), (X_xp, True)]:
+        with config_context(array_api_dispatch=dispatch):
+            model = estimator(**params)
+            for start in range(0, X.shape[0], batch):
+                model.partial_fit(
+                    X[start:start + batch, ...], y_np[start:start + batch],
+                )
+            predictions.append(
+                move_to(model.predict(X), xp=np, device="cpu")
+            )
+
+    xpx.testing.assert_close(
+        predictions[0], predictions[1],
+        err_msg="predict() did not the return the same result",
+        atol=atol,
+    )
