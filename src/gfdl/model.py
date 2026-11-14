@@ -2,6 +2,8 @@
 Estimators for gradient free deep learning.
 """
 
+from itertools import pairwise
+
 import numpy as np
 import scipy
 from scipy.special import logsumexp
@@ -23,7 +25,30 @@ from gfdl.activations import resolve_activation
 from gfdl.weights import resolve_weight
 
 
-class GFDL(BaseEstimator):
+class _BaseGFDL(BaseEstimator):
+    """Shared initialization logic for GFDL estimators."""
+
+    def _initialize(self, X, input_skip=False):
+        # input_skip: deeper layers also receive the raw input features
+        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+        if hidden_layer_sizes.min() < 1:
+            raise ValueError("hidden_layer_sizes must be > 0, "
+                             f"got {hidden_layer_sizes}")
+        self._activation_fn = resolve_activation(self.activation)[1]
+        self._N = X.shape[1]
+        self._weight_mode = resolve_weight(self.weight_scheme)
+        skip = self._N if input_skip else 0
+        rng = self.get_generator(self.seed)
+        self.W_ = [self._weight_mode(
+            self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+        )]
+        self.b_ = [self._weight_mode(1, hidden_layer_sizes[0], rng=rng).reshape(-1)]
+        for prev, layer in pairwise(hidden_layer_sizes):
+            self.W_.append(self._weight_mode(prev + skip, layer, rng=rng))
+            self.b_.append(self._weight_mode(1, layer, rng=rng).reshape(-1))
+
+
+class GFDL(_BaseGFDL):
     """Base class for GFDL for classification and regression."""
     def __init__(
         self,
@@ -49,39 +74,7 @@ class GFDL(BaseEstimator):
         # Y shape: (n_samples, n_classes-1)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
-        if hidden_layer_sizes.min() < 1:
-            raise ValueError("hidden_layer_sizes must be > 0, "
-                             f"got {hidden_layer_sizes}")
-        fn = resolve_activation(self.activation)[1]
-        self._activation_fn = fn
-        self._N = X.shape[1]
-        self._weight_mode = resolve_weight(self.weight_scheme)
-
-        # weights shape: (n_layers,)
-        # biases shape: (n_layers,)
-        self.W_ = []
-        self.b_ = []
-        rng = self.get_generator(self.seed)
-
-        self.W_.append(
-            self._weight_mode(
-                self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
-                )
-            )
-        self.b_.append(
-            self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-            .reshape(-1)
-            )
-        for i, layer in enumerate(hidden_layer_sizes[1:]):
-            # (n_hidden, n_features)
-            self.W_.append(
-                self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,)
-                )
-            # (n_hidden,)
-            self.b_.append(
-                self._weight_mode(1, layer, rng=rng,).reshape(-1)
-                )
+        self._initialize(X)
 
         # hypothesis space shape: (n_layers,)
         Hs = []
@@ -140,37 +133,7 @@ class GFDL(BaseEstimator):
         # Y shape: (n_samples, n_classes-1)
 
         if not hasattr(self, "W_"):
-            # initialize params only on first call
-            fn = resolve_activation(self.activation)[1]
-            self._activation_fn = fn
-            self._N = X.shape[1]
-            hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
-            self._weight_mode = resolve_weight(self.weight_scheme)
-
-            # weights shape: (n_layers,)
-            # biases shape: (n_layers,)
-            self.W_ = []
-            self.b_ = []
-            rng = self.get_generator(self.seed)
-
-            self.W_.append(
-                self._weight_mode(
-                    self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
-                    )
-                )
-            self.b_.append(
-                self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-                .reshape(-1)
-                )
-            for i, layer in enumerate(hidden_layer_sizes[1:]):
-                # (n_hidden, n_features)
-                self.W_.append(
-                    self._weight_mode(hidden_layer_sizes[i], layer, rng=rng,)
-                    )
-                # (n_hidden,)
-                self.b_.append(
-                    self._weight_mode(1, layer, rng=rng,).reshape(-1)
-                    )
+            self._initialize(X)
 
         # design matrix shape: (n_samples, sum_hidden+n_features)
         # or (n_samples, sum_hidden)
@@ -539,7 +502,7 @@ class GFDLClassifier(ClassifierMixin, GFDL):
         return out
 
 
-class EnsembleGFDL(BaseEstimator):
+class EnsembleGFDL(_BaseGFDL):
     """Base class for ensemble GFDL model for classification and regression."""
     def __init__(
         self,
@@ -565,38 +528,7 @@ class EnsembleGFDL(BaseEstimator):
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
 
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
-        if hidden_layer_sizes.min() < 1:
-            raise ValueError("hidden_layer_sizes must be > 0, "
-                             f"got {hidden_layer_sizes}")
-        fn = resolve_activation(self.activation)[1]
-        self._activation_fn = fn
-        self._N = X.shape[1]
-        self._weight_mode = resolve_weight(self.weight_scheme)
-
-        self.W_ = []
-        self.b_ = []
-        rng = self.get_generator(self.seed)
-
-        self.W_.append(
-            self._weight_mode(
-                self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
-                )
-            )
-        self.b_.append(
-            self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-            .reshape(-1)
-            )
-
-        for i, layer in enumerate(hidden_layer_sizes[1:]):
-            # (n_hidden, n_features)
-            self.W_.append(
-                self._weight_mode(hidden_layer_sizes[i] + self._N, layer, rng=rng)
-                )
-            # (n_hidden,)
-            self.b_.append(
-                self._weight_mode(1, layer, rng=rng,).reshape(-1)
-                )
+        self._initialize(X, input_skip=True)
 
         self.coeffs_ = []
         D = X
@@ -629,35 +561,7 @@ class EnsembleGFDL(BaseEstimator):
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
 
         if not hasattr(self, "W_"):
-            fn = resolve_activation(self.activation)[1]
-            self._activation_fn = fn
-            self._N = X.shape[1]
-            hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
-            self._weight_mode = resolve_weight(self.weight_scheme)
-
-            self.W_ = []
-            self.b_ = []
-            rng = self.get_generator(self.seed)
-
-            self.W_.append(
-                self._weight_mode(
-                    self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
-                    )
-                )
-            self.b_.append(
-                self._weight_mode(1, hidden_layer_sizes[0], rng=rng)
-                .reshape(-1)
-                )
-
-            for i, layer in enumerate(hidden_layer_sizes[1:]):
-                # (n_hidden, n_features)
-                self.W_.append(
-                    self._weight_mode(hidden_layer_sizes[i] + self._N, layer, rng=rng)
-                    )
-                # (n_hidden,)
-                self.b_.append(
-                    self._weight_mode(1, layer, rng=rng,).reshape(-1)
-                    )
+            self._initialize(X, input_skip=True)
 
         self.coeffs_ = []
         D = X
