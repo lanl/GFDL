@@ -66,7 +66,7 @@ class GFDL(BaseEstimator):
 
         self.W_.append(
             self._weight_mode(
-                self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+                self._N, hidden_layer_sizes[0], rng=rng
                 )
             )
         self.b_.append(
@@ -155,7 +155,7 @@ class GFDL(BaseEstimator):
 
             self.W_.append(
                 self._weight_mode(
-                    self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+                    self._N, hidden_layer_sizes[0], rng=rng
                     )
                 )
             self.b_.append(
@@ -580,7 +580,7 @@ class EnsembleGFDL(BaseEstimator):
 
         self.W_.append(
             self._weight_mode(
-                self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+                self._N, hidden_layer_sizes[0], rng=rng
                 )
             )
         self.b_.append(
@@ -641,7 +641,7 @@ class EnsembleGFDL(BaseEstimator):
 
             self.W_.append(
                 self._weight_mode(
-                    self._N, hidden_layer_sizes[0], rng=self.get_generator(self.seed)
+                    self._N, hidden_layer_sizes[0], rng=rng
                     )
                 )
             self.b_.append(
