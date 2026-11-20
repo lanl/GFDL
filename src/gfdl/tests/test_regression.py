@@ -243,6 +243,28 @@ def test_gh_85_regressor(hidden_layer_sizes):
         model.fit(X, y)
 
 
+@pytest.mark.parametrize("hidden_layer_sizes", [3, 100])
+def test_gh_136_regressor(hidden_layer_sizes):
+    # see gh-136
+    X, y = make_regression(random_state=42)
+    model = GFDLRegressor(hidden_layer_sizes=hidden_layer_sizes, seed=0)
+    model.fit(X, y)
+    preds = model.predict(X[:5])
+    assert preds.shape == (5,)
+    assert model.hidden_layer_sizes == hidden_layer_sizes
+
+
+@pytest.mark.parametrize("hidden_layer_sizes", [3, 100])
+def test_gh_136_regressor_partial_fit(hidden_layer_sizes):
+    # see gh-136
+    X, y = make_regression(n_samples=60, random_state=42)
+    model = GFDLRegressor(hidden_layer_sizes=hidden_layer_sizes, seed=0)
+    model.partial_fit(X, y)
+    preds = model.predict(X[:5])
+    assert preds.shape == (5,)
+    assert model.hidden_layer_sizes == hidden_layer_sizes
+
+
 def test_preserve_class_inputs():
     # see: gh-111
     model = GFDLRegressor(seed=0)
