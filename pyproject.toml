@@ -52,7 +52,7 @@ test = [
     "pandas<3.1.0",
 ]
 lint = [
-    "ruff==0.16.8",
+    "ruff==0.17.5",
 ]
 doc = [
     "numpydoc",
