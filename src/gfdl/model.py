@@ -49,8 +49,11 @@ class GFDL(BaseEstimator):
         # Y shape: (n_samples, n_classes-1)
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
-        if hidden_layer_sizes.min() < 1:
+        hidden_layer_sizes = self.hidden_layer_sizes
+        if not hasattr(hidden_layer_sizes, "__iter__"):
+            hidden_layer_sizes = [hidden_layer_sizes]
+        hidden_layer_sizes = list(hidden_layer_sizes)
+        if min(hidden_layer_sizes) < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {hidden_layer_sizes}")
         fn = resolve_activation(self.activation)[1]
@@ -144,7 +147,10 @@ class GFDL(BaseEstimator):
             fn = resolve_activation(self.activation)[1]
             self._activation_fn = fn
             self._N = X.shape[1]
-            hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+            hidden_layer_sizes = self.hidden_layer_sizes
+            if not hasattr(hidden_layer_sizes, "__iter__"):
+                hidden_layer_sizes = [hidden_layer_sizes]
+            hidden_layer_sizes = list(hidden_layer_sizes)
             self._weight_mode = resolve_weight(self.weight_scheme)
 
             # weights shape: (n_layers,)
@@ -565,8 +571,11 @@ class EnsembleGFDL(BaseEstimator):
         if self.reg_alpha is not None and self.reg_alpha < 0.0:
             raise ValueError("Negative reg_alpha. Expected range : None or [0.0, inf).")
 
-        hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
-        if hidden_layer_sizes.min() < 1:
+        hidden_layer_sizes = self.hidden_layer_sizes
+        if not hasattr(hidden_layer_sizes, "__iter__"):
+            hidden_layer_sizes = [hidden_layer_sizes]
+        hidden_layer_sizes = list(hidden_layer_sizes)
+        if min(hidden_layer_sizes) < 1:
             raise ValueError("hidden_layer_sizes must be > 0, "
                              f"got {hidden_layer_sizes}")
         fn = resolve_activation(self.activation)[1]
@@ -632,7 +641,10 @@ class EnsembleGFDL(BaseEstimator):
             fn = resolve_activation(self.activation)[1]
             self._activation_fn = fn
             self._N = X.shape[1]
-            hidden_layer_sizes = np.asarray(self.hidden_layer_sizes)
+            hidden_layer_sizes = self.hidden_layer_sizes
+            if not hasattr(hidden_layer_sizes, "__iter__"):
+                hidden_layer_sizes = [hidden_layer_sizes]
+            hidden_layer_sizes = list(hidden_layer_sizes)
             self._weight_mode = resolve_weight(self.weight_scheme)
 
             self.W_ = []
