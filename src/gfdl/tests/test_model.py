@@ -266,6 +266,13 @@ def test_soft_and_hard(hidden_layer_sizes,
                        class_sep,
                        seed,
                        ):
+    # NOTE: The "soft" approach takes the mean over layers and then the argmax.
+    # The "hard" approach takes the argmax per layer and then majority vote.
+    # The parametrized cases concern a) single layers where these approaches
+    # are mathematically equivalent, and b) well-separated classes where the
+    # approaches in deep RVFL networks should agree with high probability.
+    # See https://github.com/lanl/GFDL/pull/157/changes#r4646145951
+    # See: gh-161 and gh162
     N, d = 60, 10
     X, y = make_classification(n_samples=N,
                                n_features=d,
@@ -528,6 +535,10 @@ def test_rtol_classifier(reg_alpha, rtol, expected_acc, expected_roc):
 
 @pytest.mark.parametrize("reg_alpha, rtol, expected_acc, expected_roc", [
     (5.0, 1e-15, 0.7472222222222222, 0.9544467203797617),
+    # NOTE: AUROC values less than 0.50 (worse than random guessing)
+    # are within statistical noise from different random seeds or
+    # code revisions to the random number generator mechanism.
+    # See https://github.com/lanl/GFDL/pull/157/changes#r4648290534.
     (None, 1e-15, 0.12777777777777777, 0.4983740449299509),
     (None, 1e-3, 0.9583333333333334, 0.9916851451257197),
 ])
@@ -653,9 +664,9 @@ def test_partial_fit(
         # NOTE: for Moore-Penrose, a large singular value
         # cutoff (rcond) or alpha regularization is required
         # to achieve reasonable accuracy
-        # Without rtol or reg accuracy ~= 0.7632
+        # Without rtol or reg accuracy ~= 0.7105
         # With reg accuracy ~= 0.9649
-        # With rtol accuracy ~= 0.9474
+        # With rtol accuracy ~= 0.9561
         (GFDLClassifier, 5, None, 0.9649122807017544),
         (GFDLClassifier, None, None, 0.7105263157894737),
         (GFDLClassifier, None, 1e-3, 0.956140350877193),

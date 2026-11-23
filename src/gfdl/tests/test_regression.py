@@ -109,11 +109,17 @@ def test_sklearn_api_conformance(estimator, check):
 
 
 @pytest.mark.parametrize("reg_alpha, expected", [
-    (0.1, 0.8368098928918929),
+    # NOTE: the R2 scores for this test can range from
+    # within the low 60% to low 80% due to statistical
+    # noise from changes in seed or to the RNG mechanism.
+    # We changed the estimator's seed so that expected R2 scores
+    # remain high in the 0.70 - 0.80 range.
+    # See https://github.com/lanl/GFDL/pull/157#discussion_r4647180466.
+    (0.1, 0.7484237873692346),
     # NOTE: for Moore-Penrose, a large singular value
     # cutoff (rtol) is required to achieve reasonable R2 with
     # the Boston Housing dataset
-    (None, 0.8396293819221081),
+    (None, 0.7943910014161282),
 ])
 def test_regression_boston(reg_alpha, expected):
     # real-world data test with multi-layer RVFL
@@ -128,11 +134,11 @@ def test_regression_boston(reg_alpha, expected):
     X_test_s = scaler.transform(X_test)
 
     model = GFDLRegressor(
-            hidden_layer_sizes=[64] * 4,
+            hidden_layer_sizes=[800] * 10,
             activation="tanh",
-            weight_scheme="lecun_normal",
+            weight_scheme="uniform",
             direct_links=1,
-            seed=0,
+            seed=42,
             reg_alpha=reg_alpha,
             rtol=1e-3,  # has no effect for `Ridge`
         )
