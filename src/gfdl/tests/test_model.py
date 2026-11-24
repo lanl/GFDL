@@ -241,22 +241,47 @@ def test_against_shi2021(Classifier, target):
     assert acc == pytest.approx(target, rel=1e-4, abs=0)
 
 
-def test_soft_and_hard():
+@pytest.mark.parametrize("hidden_layer_sizes, class_sep, seed",
+    [
+        # with a single layer there is only one ensemble member, so
+        # "soft" (mean of probabilities) and "hard" (majority vote)
+        # aggregation are mathematically identical
+        # see: gh-161
+        ((5,), 1., 0),
+        ((5,), 1., 1),
+        # the "soft" and "hard" ensemble estimators should provide
+        # predictions that agree for most seeds when the data is well-separated
+        # see: gh-162
+        ((5, 5), 8., 2),
+        ((5, 5), 8., 3),
+        ((5, 5), 64., 4),
+        ((5, 5), 64., 5),
+        ((5, 5, 5), 8., 6),
+        ((5, 5, 5), 8., 7),
+        ((5, 5, 5), 64., 8),
+        ((5, 5, 5), 64., 9),
+    ]
+)
+def test_soft_and_hard(hidden_layer_sizes,
+                       class_sep,
+                       seed,
+                       ):
     N, d = 60, 10
     X, y = make_classification(n_samples=N,
                                n_features=d,
                                n_classes=3,
                                n_informative=8,
-                               random_state=0)
+                               class_sep=class_sep,
+                               random_state=seed)
 
     X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.2,
-                                                        random_state=0)
+                                                        random_state=seed)
 
     model = EnsembleGFDLClassifier(
-        hidden_layer_sizes=(5, 5, 5),
+        hidden_layer_sizes=hidden_layer_sizes,
         activation="tanh",
         weight_scheme="uniform",
-        seed=0,
+        seed=seed,
         reg_alpha=0.1
     )
     model.fit(X_train, y_train)
