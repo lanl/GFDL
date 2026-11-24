@@ -536,8 +536,7 @@ def test_rtol_classifier(reg_alpha, rtol, expected_acc, expected_roc):
 @pytest.mark.parametrize("reg_alpha, rtol, expected_acc, expected_roc", [
     (5.0, 1e-15, 0.7472222222222222, 0.9544467203797617),
     # NOTE: AUROC values less than 0.50 (worse than random guessing)
-    # are within statistical noise from different random seeds or
-    # code revisions to the random number generator mechanism.
+    # are typical for this choice of parameters.
     # See https://github.com/lanl/GFDL/pull/157/changes#r4648290534.
     (None, 1e-15, 0.12777777777777777, 0.4983740449299509),
     (None, 1e-3, 0.9583333333333334, 0.9916851451257197),
