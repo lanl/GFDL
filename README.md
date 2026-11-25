@@ -28,6 +28,9 @@ satisfied.
 5. Please add regression tests for bug fixes and new features, and avoid
 making unrelated changes (i.e., formatting changes to other parts of the
 code alongside a bug fix or improvement).
+6. For developers with push access, please open PRs from branches on
+your fork of the repository to avoid accidents and branch clutter
+in the main repo.
 
 ## Automated Contributions Policy
 
